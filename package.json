@@ -65,27 +65,29 @@
       ]
     },
     "test:dev": {
-      "command": "MODE=dev wtr \"development/test/**/*_test.js\" --config ./web-test-runner.config.js",
+      "command": "wtr \"development/test/**/*_test.js\" --config ./web-test-runner.config.js",
       "dependencies": [
         "build:ts"
       ],
       "env": {
         "BROWSERS": {
           "external": true
-        }
+        },
+        "MODE": "dev"
       },
       "files": [],
       "output": []
     },
     "test:prod": {
-      "command": "MODE=prod wtr \"dist/test/**/*_test.js\" --config ./web-test-runner.config.js",
+      "command": "wtr \"dist/test/**/*_test.js\" --config ./web-test-runner.config.js",
       "dependencies": [
         "build"
       ],
       "env": {
         "BROWSERS": {
           "external": true
-        }
+        },
+        "MODE": "prod"
       },
       "files": [],
       "output": []
