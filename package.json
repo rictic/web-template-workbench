@@ -1,0 +1,125 @@
+{
+  "name": "web-template-workbench",
+  "private": true,
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "scripts": {
+    "build": "wireit",
+    "build:ts": "wireit",
+    "build:rollup": "wireit",
+    "checksize": "wireit",
+    "test": "wireit",
+    "test:dev": "wireit",
+    "test:prod": "wireit"
+  },
+  "wireit": {
+    "build": {
+      "dependencies": [
+        "build:rollup",
+        "build:ts"
+      ]
+    },
+    "build:ts": {
+      "#comment": "Note this also builds polyfill-support via a TypeScript project reference.",
+      "command": "tsc --build --pretty",
+      "dependencies": [],
+      "clean": "if-file-deleted",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "development/**/*.{js,js.map,d.ts,d.ts.map}",
+        "tsconfig.tsbuildinfo"
+      ]
+    },
+    "build:rollup": {
+      "command": "rollup -c",
+      "dependencies": [
+        "build:ts"
+      ],
+      "files": [
+        "rollup.config.js",
+        "../../rollup-common.js",
+        "src/test/*_test.html",
+        "src/test/polyfill-support/*_test.html"
+      ],
+      "output": [
+        "dist/"
+      ]
+    },
+    "checksize": {
+      "command": "rollup -c --environment=CHECKSIZE",
+      "dependencies": [
+        "build:ts"
+      ],
+      "files": [
+        "rollup.config.js",
+        "../../rollup-common.js"
+      ],
+      "output": []
+    },
+    "test": {
+      "dependencies": [
+        "test:dev"
+      ]
+    },
+    "test:dev": {
+      "command": "MODE=dev wtr \"development/test/**/*_test.js\" --config ./web-test-runner.config.js",
+      "dependencies": [
+        "build:ts"
+      ],
+      "env": {
+        "BROWSERS": {
+          "external": true
+        }
+      },
+      "files": [],
+      "output": []
+    },
+    "test:prod": {
+      "command": "MODE=prod wtr \"dist/test/**/*_test.js\" --config ./web-test-runner.config.js",
+      "dependencies": [
+        "build"
+      ],
+      "env": {
+        "BROWSERS": {
+          "external": true
+        }
+      },
+      "files": [],
+      "output": []
+    }
+  },
+  "dependencies": {
+    "@types/trusted-types": "^2.0.2"
+  },
+  "devDependencies": {
+    "@esm-bundle/chai": "^4.3.4-fix.0",
+    "@lit-labs/testing": "^0.2.0",
+    "@rollup/plugin-inject": "^5.0.3",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-replace": "^5.0.2",
+    "@rollup/plugin-virtual": "^3.0.1",
+    "@types/chai": "^4.3.1",
+    "@types/mocha": "^9.1.1",
+    "@web/dev-server-legacy": "^2.0.0",
+    "@web/polyfills-loader": "^2.1.1",
+    "@web/test-runner": "^0.15.0",
+    "@web/test-runner-mocha": "^0.7.5",
+    "@web/test-runner-playwright": "^0.9.0",
+    "@web/test-runner-saucelabs": "0.8.1",
+    "@webcomponents/shadycss": "^1.8.0",
+    "@webcomponents/template": "^1.4.4",
+    "@webcomponents/webcomponentsjs": "^2.8.0",
+    "rollup-plugin-copy": "^3.4.0",
+    "rollup-plugin-sourcemaps": "^0.6.3",
+    "rollup-plugin-terser": "^7.0.2",
+    "typescript": "^5.1.6",
+    "wireit": "^0.10.0"
+  },
+  "typings": "lit-html.d.ts",
+  "directories": {
+    "test": "test"
+  }
+}

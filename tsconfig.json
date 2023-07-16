@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "es2021",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["es2021", "DOM", "DOM.Iterable"],
+    "rootDir": "./src",
+    "outDir": "./development/",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "inlineSources": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitOverride": true,
+    "types": ["chai", "mocha", "node", "trusted-types"],
+    "paths": {
+      "@esm-bundle/chai": ["./local-types/@esm-bundle/chai/index.d.ts"]
+    },
+    "composite": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/polyfill-support.ts"]
+}
