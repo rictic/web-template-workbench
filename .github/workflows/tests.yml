@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    # This is the default list, but I don't know how to YAML an empty pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - uses: google/wireit@setup-github-actions-caching/v1
+
+      - name: NPM install
+        run: npm ci
+
+      - name: Install playwright deps
+        run: npx playwright install-deps
+
+      - name: NPM install
+        run: npm ci
+
+      - name: Test
+        env:
+          BROWSERS: preset:local
+          CONCURRENT_BROWSERS: 3
+        run: npm run test
