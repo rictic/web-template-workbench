@@ -397,7 +397,6 @@ export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
       const metadata: string[] = [];
       const badAttributes: string[] = [];
       for (const attr of element.attributes) {
-
         if (/lit\$\d+\$\d+/.test(attr.name)) {
           metadata.push('d');
           badAttributes.push(attr.name);
@@ -409,17 +408,21 @@ export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
           attrNameIdx++;
           // const value = attr.value;
           const regex = /(?:(lit\$\d+\$))|(?:(.+?)(?:lit\$\d+\$))|(.+)/g;
+          let endMatched = false;
           for (const [_, bindingStart, lit, end] of attr.value.matchAll(
             regex
           )) {
             if (bindingStart !== undefined) {
-              metadata.push('.');
+              metadata.push('""');
             } else if (lit !== undefined) {
               metadata.push(JSON.stringify(lit));
-              metadata.push('.');
             } else {
               metadata.push(JSON.stringify(end));
+              endMatched = true;
             }
+          }
+          if (endMatched === false) {
+            metadata.push('""');
           }
           badAttributes.push(attr.name);
         }
@@ -442,7 +445,7 @@ export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
 /**
  * The native implementation when present, and the ponyfill when not.
  */
-export const fromLiterals = (() => {
+export const templateFromLiterals = (() => {
   const extendedTemplateElement: ExtendedTemplateElement = HTMLTemplateElement;
   if (extendedTemplateElement.fromLiterals !== undefined) {
     return extendedTemplateElement.fromLiterals.bind(extendedTemplateElement);
