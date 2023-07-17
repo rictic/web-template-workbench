@@ -24,6 +24,7 @@ import {
   commentTest,
   compiledSuite,
   devModeTest,
+  fakeNodeMatcher,
   html,
   rawTest,
   skipIfDomParts,
@@ -90,7 +91,6 @@ suite('lit-html', () => {
     return part;
   };
 
-  const fakeNodeMatcher = /<\/?fake>/g;
   const assertContent = (expected: string | string[], message?: string) => {
     const cleanActual = stripExpressionComments(
       container.innerHTML.replace(fakeNodeMatcher, '')
