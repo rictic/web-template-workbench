@@ -1,6 +1,6 @@
 import {ExclusiveTestFunction, TestFunction} from 'mocha';
 import {useDomParts} from '../modes.js';
-import {ponyfill, templateFromLiterals} from '../template-from-literals.js';
+import {templateFromLiterals} from '../template-from-literals.js';
 import {assert} from '@esm-bundle/chai';
 
 const html = (strings: TemplateStringsArray, ..._: unknown[]) => strings;
@@ -8,7 +8,7 @@ const html = (strings: TemplateStringsArray, ..._: unknown[]) => strings;
 const x = null;
 interface TestCase {
   name: string;
-  input: TemplateStringsArray,
+  input: TemplateStringsArray;
   expected: string;
   only?: boolean;
   skip?: boolean;
@@ -65,26 +65,17 @@ for (const {name, input, expected, only, skip} of testCases) {
   }
   testFn(name, () => {
     if (useDomParts) {
-      // ironically, these tests are only useful when DOM parts aren't
-      // implemented in the browser, because when they are we don't want to
-      // insert processing instructions, we just create the parts imperatively.
+      // in a rather silly situation that needs to be cleaned up, these tests
+      // are only useful when DOM parts _aren't_ implemented in the browser,
+      // because when they are we don't want to insert processing instructions,
+      // we just create the parts imperatively.
       return;
     }
-    const templ = ponyfill(input);
+    const templ = templateFromLiterals(input);
     assert.deepEqual(
       templ.innerHTML,
       expected,
       `unexpected HTMLTemplateElement.fromLiterals ponyfill output`
     );
-
-    // native implementation!
-    if (templateFromLiterals !== ponyfill) {
-      const templ = templateFromLiterals(input);
-      assert.deepEqual(
-        templ.innerHTML,
-        expected,
-        `unexpected native HTMLTemplateElement.fromLiterals output`
-      );
-    }
   });
 }
