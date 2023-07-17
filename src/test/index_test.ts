@@ -93,7 +93,7 @@ suite('lit-html', () => {
 
   const assertRender = (
     r: TemplateResult | CompiledTemplateResult,
-    expected: string,
+    expected: string | string[],
     options?: RenderOptions,
     message?: string
   ) => {
@@ -103,12 +103,15 @@ suite('lit-html', () => {
   };
 
   const fakeNodeMatcher = /<\/?fake>/g;
-  const assertContent = (expected: string, message?: string) => {
-    assert.equal(
-      stripExpressionComments(container.innerHTML.replace(fakeNodeMatcher, '')),
-      expected,
-      message
+  const assertContent = (expected: string | string[], message?: string) => {
+    const cleanActual = stripExpressionComments(
+      container.innerHTML.replace(fakeNodeMatcher, '')
     );
+    if (Array.isArray(expected)) {
+      assert.oneOf(cleanActual, expected, message);
+    } else {
+      assert.equal(cleanActual, expected, message);
+    }
   };
 
   /**
@@ -367,7 +370,10 @@ suite('lit-html', () => {
       assertRender(html`<div a="${'A'}"></div>`, '<div a="A"></div>');
       assertRender(html`<div abc="${'A'}"></div>`, '<div abc="A"></div>');
       assertRender(html`<div abc = "${'A'}"></div>`, '<div abc="A"></div>');
-      assertRender(html`<div abc="${'A'}/>"></div>`, '<div abc="A/>"></div>');
+      assertRender(html`<div abc="${'A'}/>"></div>`, [
+        '<div abc="A/>"></div>',
+        '<div abc="A/&gt;"></div>',
+      ]);
       assertRender(html`<input value="${'A'}"/>`, '<input value="A">');
     });
 
@@ -397,10 +403,10 @@ suite('lit-html', () => {
     });
 
     test('quoted attribute with markup', () => {
-      assertRender(
-        html`<div a="<table>${'A'}"></div>`,
-        '<div a="<table>A"></div>'
-      );
+      assertRender(html`<div a="<table>${'A'}"></div>`, [
+        '<div a="<table>A"></div>',
+        '<div a="&lt;table&gt;A"></div>',
+      ]);
     });
 
     test('text after quoted bound attribute', () => {
