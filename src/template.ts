@@ -123,6 +123,65 @@ export interface DirectiveParent {
   __directives?: Array<Directive | undefined>;
 }
 
+export interface Disconnectable {
+  _$parent?: Disconnectable;
+  _$disconnectableChildren?: Set<Disconnectable>;
+  // Rather than hold connection state on instances, Disconnectables recursively
+  // fetch the connection state from the RootPart they are connected in via
+  // getters up the Disconnectable tree via _$parent references. This pushes the
+  // cost of tracking the isConnected state to `AsyncDirectives`, and avoids
+  // needing to pass all Disconnectables (parts, template instances, and
+  // directives) their connection state each time it changes, which would be
+  // costly for trees that have no AsyncDirectives.
+  _$isConnected: boolean;
+}
+
+export function resolveDirective(
+  part: ChildPart | AttributePart | ElementPart,
+  value: unknown,
+  parent: DirectiveParent = part,
+  attributeIndex?: number
+): unknown {
+  // Bail early if the value is explicitly noChange. Note, this means any
+  // nested directive is still attached and is not run.
+  if (value === noChange) {
+    return value;
+  }
+  let currentDirective =
+    attributeIndex !== undefined
+      ? (parent as AttributePart).__directives?.[attributeIndex]
+      : (parent as ChildPart | ElementPart | Directive).__directive;
+  const nextDirectiveConstructor = isPrimitive(value)
+    ? undefined
+    : // This property needs to remain unminified.
+      (value as DirectiveResult)['_$litDirective$'];
+  if (currentDirective?.constructor !== nextDirectiveConstructor) {
+    // This property needs to remain unminified.
+    currentDirective?.['_$notifyDirectiveConnectionChanged']?.(false);
+    if (nextDirectiveConstructor === undefined) {
+      currentDirective = undefined;
+    } else {
+      currentDirective = new nextDirectiveConstructor(part as PartInfo);
+      currentDirective._$initialize(part, parent, attributeIndex);
+    }
+    if (attributeIndex !== undefined) {
+      ((parent as AttributePart).__directives ??= [])[attributeIndex] =
+        currentDirective;
+    } else {
+      (parent as ChildPart | Directive).__directive = currentDirective;
+    }
+  }
+  if (currentDirective !== undefined) {
+    value = resolveDirective(
+      part,
+      currentDirective._$resolve(part, (value as DirectiveResult).values),
+      currentDirective,
+      attributeIndex
+    );
+  }
+  return value;
+}
+
 /** @internal */
 export type {Template};
 class Template {
@@ -267,65 +326,6 @@ class Template {
     el.innerHTML = html as unknown as string;
     return el;
   }
-}
-
-export interface Disconnectable {
-  _$parent?: Disconnectable;
-  _$disconnectableChildren?: Set<Disconnectable>;
-  // Rather than hold connection state on instances, Disconnectables recursively
-  // fetch the connection state from the RootPart they are connected in via
-  // getters up the Disconnectable tree via _$parent references. This pushes the
-  // cost of tracking the isConnected state to `AsyncDirectives`, and avoids
-  // needing to pass all Disconnectables (parts, template instances, and
-  // directives) their connection state each time it changes, which would be
-  // costly for trees that have no AsyncDirectives.
-  _$isConnected: boolean;
-}
-
-export function resolveDirective(
-  part: ChildPart | AttributePart | ElementPart,
-  value: unknown,
-  parent: DirectiveParent = part,
-  attributeIndex?: number
-): unknown {
-  // Bail early if the value is explicitly noChange. Note, this means any
-  // nested directive is still attached and is not run.
-  if (value === noChange) {
-    return value;
-  }
-  let currentDirective =
-    attributeIndex !== undefined
-      ? (parent as AttributePart).__directives?.[attributeIndex]
-      : (parent as ChildPart | ElementPart | Directive).__directive;
-  const nextDirectiveConstructor = isPrimitive(value)
-    ? undefined
-    : // This property needs to remain unminified.
-      (value as DirectiveResult)['_$litDirective$'];
-  if (currentDirective?.constructor !== nextDirectiveConstructor) {
-    // This property needs to remain unminified.
-    currentDirective?.['_$notifyDirectiveConnectionChanged']?.(false);
-    if (nextDirectiveConstructor === undefined) {
-      currentDirective = undefined;
-    } else {
-      currentDirective = new nextDirectiveConstructor(part as PartInfo);
-      currentDirective._$initialize(part, parent, attributeIndex);
-    }
-    if (attributeIndex !== undefined) {
-      ((parent as AttributePart).__directives ??= [])[attributeIndex] =
-        currentDirective;
-    } else {
-      (parent as ChildPart | Directive).__directive = currentDirective;
-    }
-  }
-  if (currentDirective !== undefined) {
-    value = resolveDirective(
-      part,
-      currentDirective._$resolve(part, (value as DirectiveResult).values),
-      currentDirective,
-      attributeIndex
-    );
-  }
-  return value;
 }
 
 /**
