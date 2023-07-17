@@ -628,6 +628,7 @@ export const defaultConfig = (options = {}) =>
       "static",
       "private-ssr-support",
       "modes",
+      "template-from-literals",
     ],
     outputDir: "./dist/",
     bundled: [],
