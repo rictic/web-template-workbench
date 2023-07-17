@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 import {getTemplateHtml} from './get-template-html.js';
 import {DEV_MODE, useDomParts} from './modes.js';
 import {HTML_RESULT, ResultType, SVG_RESULT} from './ttl.js';
@@ -309,11 +315,13 @@ declare global {
   }
 
   class DocumentPart implements PartRoot {
-    constructor(document: Document | DocumentFragment);
+    constructor(rootContainer: Document | DocumentFragment);
 
     getParts(): Part[];
 
     clone(): DocumentPart;
+
+    readonly rootContainer: Document | DocumentFragment;
   }
 
   interface Document {
@@ -343,8 +351,8 @@ declare global {
     readonly root?: PartRoot;
     readonly metadata: string[];
 
-    readonly previousSibling: Node;
-    readonly nextSibling: Node;
+    readonly previousSibling: ChildNode;
+    readonly nextSibling: ChildNode;
 
     constructor(
       root: PartRoot,
