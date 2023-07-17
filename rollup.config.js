@@ -627,6 +627,7 @@ export const defaultConfig = (options = {}) =>
       "async-directive",
       "static",
       "private-ssr-support",
+      "modes",
     ],
     outputDir: "./dist/",
     bundled: [],
