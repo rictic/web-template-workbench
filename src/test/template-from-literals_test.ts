@@ -7,6 +7,11 @@ const html = (strings: TemplateStringsArray, ..._: unknown[]) => strings;
 const x = null;
 const testCases = [
   {
+    name: 'empty',
+    input: html` `,
+    expected: ` `,
+  },
+  {
     name: 'no bindings',
     input: html`<div></div>`,
     expected: `<div></div>`,
@@ -35,6 +40,11 @@ const testCases = [
     name: 'many bindings',
     input: html`<div x="a ${x} b ${x} c" ${x} v=${x}>${x}foo ${x} bar ${x}${x}</div>`,
     expected: `<!--?node-part attr x "a " . " b " . " c" d attr v . ?--><div><!--?child-node-part?--><!--?/child-node-part?-->foo <!--?child-node-part?--><!--?/child-node-part?--> bar <!--?child-node-part?--><!--?/child-node-part?--><!--?child-node-part?--><!--?/child-node-part?--></div>`,
+  },
+  {
+    name: 'unusual attribute names',
+    input: html`<div .foo="${x}" @bar=${x} .bazQux=${x}></div>`,
+    expected: `<!--?node-part attr .foo . attr @bar . attr .bazQux . ?--><div></div>`,
   },
 ];
 

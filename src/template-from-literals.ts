@@ -366,7 +366,8 @@ declare global {
 }
 
 export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
-  const [html, _attrNames] = getTemplateHtml(strings, HTML_RESULT);
+  const [html, attrNames] = getTemplateHtml(strings, HTML_RESULT);
+  let attrNameIdx = 0;
   const template = document.createElement('template');
   template.innerHTML = html as unknown as string;
   const treeWalker = document.createTreeWalker(template.content);
@@ -380,7 +381,6 @@ export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
       const comment = node as Comment;
       if (/lit\$\d+/.test(comment.data)) {
         if (useDomParts) {
-          console.log('native!');
           const before = new Text();
           const after = new Text();
           comment.before(before);
@@ -397,6 +397,7 @@ export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
       const metadata: string[] = [];
       const badAttributes: string[] = [];
       for (const attr of element.attributes) {
+
         if (/lit\$\d+\$\d+/.test(attr.name)) {
           metadata.push('d');
           badAttributes.push(attr.name);
@@ -404,7 +405,8 @@ export function ponyfill(strings: TemplateStringsArray): HTMLTemplateElement {
         }
         const match = attr.name.match(/^(.*)\$lit\$$/);
         if (match !== null) {
-          metadata.push('attr', match[1]);
+          metadata.push('attr', attrNames[attrNameIdx]);
+          attrNameIdx++;
           // const value = attr.value;
           const regex = /(?:(lit\$\d+\$))|(?:(.+?)(?:lit\$\d+\$))|(.+)/g;
           for (const [_, bindingStart, lit, end] of attr.value.matchAll(
