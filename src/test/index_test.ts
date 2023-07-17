@@ -17,6 +17,8 @@ import {
   SanitizerFactory,
   Part,
   CompiledTemplate,
+  _testOnlyClearSanitizerFactoryDoNotCallOrElse,
+  setSanitizer,
 } from '../index.js';
 
 import {
@@ -39,15 +41,13 @@ import {createRef, ref} from '../directives/ref.js';
 // For compiled template tests
 import {_$LH} from '../private-ssr-support.js';
 import {until} from '../directives/until.js';
+import {DEV_MODE} from '../modes.js';
 const {AttributePart} = _$LH;
 
 type AttributePart = InstanceType<typeof AttributePart>;
 
 const ua = window.navigator.userAgent;
 const isIe = ua.indexOf('Trident/') > 0;
-// We don't have direct access to DEV_MODE, but this is a good enough
-// proxy.
-const DEV_MODE = render.setSanitizer != null;
 
 class FireEventDirective extends Directive {
   render() {
@@ -3015,10 +3015,10 @@ suite('lit-html', () => {
       };
     };
     setup(() => {
-      render.setSanitizer(testSanitizerFactory);
+      setSanitizer(testSanitizerFactory);
     });
     teardown(() => {
-      render._testOnlyClearSanitizerFactoryDoNotCallOrElse();
+      _testOnlyClearSanitizerFactoryDoNotCallOrElse();
       sanitizerCalls.length = 0;
     });
 
