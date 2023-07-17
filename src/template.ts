@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 import type {Directive, DirectiveResult, PartInfo} from './directive.js';
 import {
   boundAttributeSuffix,

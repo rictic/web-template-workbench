@@ -1,4 +1,10 @@
-import { ENABLE_EXTRA_SECURITY_HOOKS } from "./modes.js";
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+import {ENABLE_EXTRA_SECURITY_HOOKS} from './modes.js';
 
 /**
  * Used to sanitize any value before it is written into the DOM. This can be
@@ -72,7 +78,6 @@ export const createSanitizer: SanitizerFactory = (node, name, type) => {
   return sanitizerFactoryInternal(node, name, type);
 };
 
-export const sanitizerActive = () =>
-  sanitizerFactoryInternal !== noopSanitizer;
+export const sanitizerActive = () => sanitizerFactoryInternal !== noopSanitizer;
 
 let sanitizerFactoryInternal: SanitizerFactory = noopSanitizer;

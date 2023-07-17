@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2023 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
 import {ChildPart, RootPart} from './template.js';
 import {DEV_MODE} from './modes.js';
 
