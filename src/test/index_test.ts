@@ -6,7 +6,6 @@
 import {
   ChildPart,
   CompiledTemplateResult,
-  html as htmlImpl,
   noChange,
   nothing,
   render,
@@ -20,7 +19,15 @@ import {
   _testOnlyClearSanitizerFactoryDoNotCallOrElse,
   setSanitizer,
 } from '../index.js';
-
+import {
+  brokenByFakeWrapper,
+  commentTest,
+  compiledSuite,
+  devModeTest,
+  html,
+  rawTest,
+  skipIfDomParts,
+} from './test-utils/dom-parts.js';
 import {
   directive,
   Directive,
@@ -63,55 +70,6 @@ class FireEventDirective extends Directive {
   }
 }
 const fireEvent = directive(FireEventDirective);
-
-// force a wrapper around html to always create a div to work around
-// https://lit.dev/playground/#gist=fed0fb43c92cd1198e66f84b34ad48d4?
-const wrapperMap = new WeakMap<TemplateStringsArray, TemplateStringsArray>();
-const html = (origStrings: TemplateStringsArray, ...values: unknown[]) => {
-  const wrapped = wrapperMap.get(origStrings);
-  if (wrapped !== undefined) {
-    return htmlImpl(wrapped, ...values);
-  }
-  interface FakeTemplateStringsArray extends Array<string> {
-    raw: string[];
-  }
-  const strings = [...origStrings] as FakeTemplateStringsArray;
-  strings[0] = '<fake>' + strings[0];
-  strings[strings.length - 1] += '</fake>';
-  strings.raw = strings;
-  wrapperMap.set(origStrings, strings);
-  return htmlImpl(strings as TemplateStringsArray, ...values);
-};
-
-const skipIfDomParts = (() => {
-  if (useDomParts) {
-    return test.skip;
-  } else {
-    return test;
-  }
-})();
-
-// We don't have dev mode warnings and errors implemented yet in the
-// DOM Parts implementation.
-const devModeTest = skipIfDomParts;
-
-// We don't yet support compiled templates in the DOM Parts implementation.
-const compiledSuite = (() => {
-  if (useDomParts) {
-    return suite.skip;
-  } else {
-    return suite;
-  }
-})();
-
-// Marks tests that are broken by our <fake> wrappers.
-const brokenByFakeWrapper = test.skip;
-
-// Our <fake> wrappers break tests that render raw content.
-const rawTest = brokenByFakeWrapper;
-
-// Our <fake> wrappers break tests that render into comments
-const commentTest = brokenByFakeWrapper;
 
 suite('lit-html', () => {
   let container: HTMLDivElement;
@@ -1942,16 +1900,19 @@ suite('lit-html', () => {
       });
 
       // this is broken by the <fake> wrapping node.
-      brokenByFakeWrapper(`part's parentNode is correct when rendered into a document fragment`, async () => {
-        debugger;
-        const fragment = document.createDocumentFragment();
-        (fragment as unknown as {id: string}).id = 'fragment';
-        const makeTemplate = () => html`${checkPart('fragment')}`;
+      brokenByFakeWrapper(
+        `part's parentNode is correct when rendered into a document fragment`,
+        async () => {
+          debugger;
+          const fragment = document.createDocumentFragment();
+          (fragment as unknown as {id: string}).id = 'fragment';
+          const makeTemplate = () => html`${checkPart('fragment')}`;
 
-        // Render twice so that `update` is called.
-        render(makeTemplate(), fragment);
-        render(makeTemplate(), fragment);
-      });
+          // Render twice so that `update` is called.
+          render(makeTemplate(), fragment);
+          render(makeTemplate(), fragment);
+        }
+      );
     });
 
     test('directives are stateful', () => {
