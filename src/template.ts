@@ -490,6 +490,9 @@ class DomPartsTemplate {
             attributePart!.strings.push(JSON.parse(code));
           }
         }
+        if (attributePart !== undefined) {
+          this.parts.push(attributePart);
+        }
       } else if (part instanceof ChildNodePart) {
         this.parts.push({
           type: CHILD_PART,

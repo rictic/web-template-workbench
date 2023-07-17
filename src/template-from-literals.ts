@@ -92,12 +92,12 @@ export function templateFromLiterals(
   const template = document.createElement('template');
   template.innerHTML = html as unknown as string;
   const treeWalker = document.createTreeWalker(template.content);
-  let node;
+  let node: Node | null = treeWalker.nextNode();
   let root;
   if (useDomParts) {
     root = template.content.getPartRoot();
   }
-  while ((node = treeWalker.nextNode())) {
+  while (node !== null) {
     if (node.nodeType === Node.COMMENT_NODE) {
       const comment = node as Comment;
       if (/lit\$\d+/.test(comment.data)) {
@@ -107,7 +107,9 @@ export function templateFromLiterals(
           comment.before(before);
           comment.after(after);
           new ChildNodePart(root!, before, after);
+          node = treeWalker.nextNode();
           comment.remove();
+          continue;
         } else {
           comment.data = '?child-node-part?';
           comment.after(new Comment('?/child-node-part?'));
@@ -159,6 +161,7 @@ export function templateFromLiterals(
         }
       }
     }
+    node = treeWalker.nextNode();
   }
   return template;
 }
