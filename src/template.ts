@@ -17,6 +17,8 @@ import {
   DEV_MODE,
   ENABLE_EXTRA_SECURITY_HOOKS,
   NODE_MODE,
+  mustSortParts,
+  sortDomParts,
   useDomParts,
 } from './modes.js';
 import {RenderOptions} from './render.js';
@@ -439,14 +441,20 @@ class DomPartsTemplate {
     _options?: RenderOptions
   ) {
     // Create template element
-    this.el = templateFromLiterals(strings);
+    this.el = templateFromLiterals(strings, type);
     // Re-parent SVG nodes into template root
     if (type === SVG_RESULT) {
       const svgElement = this.el.content.firstChild!;
       svgElement.replaceWith(...svgElement.childNodes);
     }
 
-    const parts = this.el.content.getPartRoot().getParts();
+    const parts = (() => {
+      const unsorted = this.el.content.getPartRoot().getParts();
+      if (mustSortParts) {
+        return sortDomParts(unsorted);
+      }
+      return unsorted;
+    })();
     let index = -1;
     for (const part of parts) {
       index++;
@@ -477,6 +485,9 @@ class DomPartsTemplate {
               name = name.slice(1);
             } else if (name.startsWith('@')) {
               ctor = EventPart;
+              name = name.slice(1);
+            } else if (name.startsWith('?')) {
+              ctor = BooleanAttributePart;
               name = name.slice(1);
             }
             attributePart = {
@@ -539,7 +550,13 @@ class DomPartsTemplateInstance implements Disconnectable {
       parts: parts,
     } = this._$template;
     const domPartRoot = content.getPartRoot().clone();
-    const domParts = domPartRoot.getParts();
+    const domParts = (() => {
+      const unsorted = domPartRoot.getParts();
+      if (mustSortParts) {
+        return sortDomParts(unsorted);
+      }
+      return unsorted;
+    })();
     const fragment = domPartRoot.rootContainer;
 
     for (const part of parts) {

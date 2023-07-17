@@ -6,7 +6,7 @@
 
 import {getTemplateHtml} from './get-template-html.js';
 import {useDomParts} from './modes.js';
-import {HTML_RESULT} from './ttl.js';
+import {HTML_RESULT, ResultType} from './ttl.js';
 
 // Typings for the DOM Parts proposed standard as described by
 // https://github.com/tbondwilkinson/dom-parts and then implemented in
@@ -85,9 +85,10 @@ declare global {
  * See the tests at ./test/template-from-literals_test.ts for more info.
  */
 export function templateFromLiterals(
-  strings: TemplateStringsArray
+  strings: TemplateStringsArray,
+  type: ResultType = HTML_RESULT
 ): HTMLTemplateElement {
-  const [html, attrNames] = getTemplateHtml(strings, HTML_RESULT);
+  const [html, attrNames] = getTemplateHtml(strings, type);
   let attrNameIdx = 0;
   const template = document.createElement('template');
   template.innerHTML = html as unknown as string;

@@ -27,8 +27,10 @@ Known issues with this prototype:
 
 - Rendering inside of comments is broken
 - Rendering inside of raw text nodes is broken
+- Our DEV_MODE checks to throw when rendering in `<template>` don't work
+- Compiled templates don't work right
 
 Known rough edges in DOM Parts:
 
-- ChildNodePart ordering is based on the parent, but previousSibling would be better. Should be fixed in Canary on July 18th or 19th or so.
-- ChildNodePart can't be a direct child of a DocumentFragment. This is a trickier fix.
+- ChildNodePart ordering is based on the parent, but previousSibling would be better. Should be fixed in Canary on July 18th or 19th or so. Working around this by doing our own sorting.
+- ChildNodePart can't be a direct child of a DocumentFragment. This is a trickier fix. Working around this by rendering into a wrapper element in our tests.
