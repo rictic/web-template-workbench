@@ -91,6 +91,28 @@ const skipIfDomParts = (() => {
   }
 })();
 
+// We don't have dev mode warnings and errors implemented yet in the
+// DOM Parts implementation.
+const devModeTest = skipIfDomParts;
+
+// We don't yet support compiled templates in the DOM Parts implementation.
+const compiledSuite = (() => {
+  if (useDomParts) {
+    return suite.skip;
+  } else {
+    return suite;
+  }
+})();
+
+// Marks tests that are broken by our <fake> wrappers.
+const brokenByFakeWrapper = test.skip;
+
+// Our <fake> wrappers break tests that render raw content.
+const rawTest = brokenByFakeWrapper;
+
+// Our <fake> wrappers break tests that render into comments
+const commentTest = brokenByFakeWrapper;
+
 suite('lit-html', () => {
   let container: HTMLDivElement;
 
@@ -166,9 +188,7 @@ suite('lit-html', () => {
       );
     });
 
-    // DOM Parts implementation doesn't yet support writing to the body of
-    // a script tag
-    test.skip('text child of element with unbound quoted attribute', () => {
+    rawTest('text child of element with unbound quoted attribute', () => {
       assertRender(html`<div a="b">${'d'}</div>`, '<div a="b">d</div>');
 
       render(html`<script a="b" type="foo">${'d'}</script>`, container);
@@ -181,7 +201,7 @@ suite('lit-html', () => {
       );
     });
 
-    test.skip('text child of element with unbound unquoted attribute', () => {
+    rawTest('text child of element with unbound unquoted attribute', () => {
       assertRender(html`<div a=b>${'d'}</div>`, '<div a="b">d</div>');
 
       render(html`<script a=b type="foo">${'d'}</script>`, container);
@@ -227,8 +247,7 @@ suite('lit-html', () => {
       assertRender(html`<div></div>${'A'}`, '<div></div>A');
     });
 
-    // parts misordered, or am I misunderstanding? https://lit.dev/playground/#gist=610ded2492e9870b3ca69c2ac267b294
-    test.skip('renders next templates with preceding elements', () => {
+    test('renders next templates with preceding elements', () => {
       assertRender(
         html`<a>${'foo'}</a>${html`<h1>${'bar'}</h1>`}`,
         '<a>foo</a><h1>bar</h1>'
@@ -247,7 +266,7 @@ suite('lit-html', () => {
       assertRender(html`<a>${'foo'}</a>${'bar'}`, '<a>foo</a>bar');
     });
 
-    test.skip('text in raw text elements', () => {
+    rawTest('text in raw text elements', () => {
       assertRender(
         html`<script type="foo">${'A'}</script>`,
         '<script type="foo">A</script>'
@@ -257,7 +276,7 @@ suite('lit-html', () => {
       assertRender(html`<textarea>${'A'}</textarea>`, '<textarea>A</textarea>');
     });
 
-    test.skip('text in raw text element after <', () => {
+    rawTest('text in raw text element after <', () => {
       // It doesn't matter much what marker we use in <script>, <style> and
       // <textarea> since comments aren't parsed and we have to search the text
       // anyway.
@@ -267,60 +286,60 @@ suite('lit-html', () => {
       );
     });
 
-    test.skip('text in raw text element after >', () => {
+    rawTest('text in raw text element after >', () => {
       assertRender(
         html`<script type="foo">i > j ${'A'}</script>`,
         '<script type="foo">i > j A</script>'
       );
     });
 
-    test.skip('text in raw text element inside tag-like string', () => {
+    rawTest('text in raw text element inside tag-like string', () => {
       assertRender(
         html`<script type="foo">"<div a=${'A'}></div>";</script>`,
         '<script type="foo">"<div a=A></div>";</script>'
       );
     });
 
-    test.skip('renders inside <script>: only node', () => {
+    rawTest('renders inside <script>: only node', () => {
       assertRender(
         html`<script type="foo">${'foo'}</script>`,
         '<script type="foo">foo</script>'
       );
     });
 
-    test.skip('renders inside <script>: first node', () => {
+    rawTest('renders inside <script>: first node', () => {
       assertRender(
         html`<script type="foo">${'foo'}A</script>`,
         '<script type="foo">fooA</script>'
       );
     });
 
-    test.skip('renders inside <script>: last node', () => {
+    rawTest('renders inside <script>: last node', () => {
       assertRender(
         html`<script type="foo">A${'foo'}</script>`,
         '<script type="foo">Afoo</script>'
       );
     });
 
-    test.skip('renders inside <script>: multiple bindings', () => {
+    rawTest('renders inside <script>: multiple bindings', () => {
       assertRender(
         html`<script type="foo">A${'foo'}B${'bar'}C</script>`,
         '<script type="foo">AfooBbarC</script>'
       );
     });
 
-    test.skip('renders inside <script>: attribute-like', () => {
+    rawTest('renders inside <script>: attribute-like', () => {
       assertRender(
         html`<script type="foo">a=${'foo'}</script>`,
         '<script type="foo">a=foo</script>'
       );
     });
 
-    test.skip('text after script element', () => {
+    rawTest('text after script element', () => {
       assertRender(html`<script></script>${'A'}`, '<script></script>A');
     });
 
-    test.skip('text after script element with binding', () => {
+    rawTest('text after script element with binding', () => {
       assertRender(
         html`<script type="foo">${'A'}</script>${'B'}`,
         '<script type="foo">A</script>B'
@@ -347,25 +366,25 @@ suite('lit-html', () => {
       assertRender(html`<style></style>${'A'}`, '<style></style>A');
     });
 
-    test.skip('text inside raw text element, after different raw tag', () => {
+    rawTest('text inside raw text element, after different raw tag', () => {
       assertRender(
         html`<script type="foo"><style></style>"<div a=${'A'}></div>"</script>`,
         '<script type="foo"><style></style>"<div a=A></div>"</script>'
       );
     });
 
-    test.skip('text inside raw text element, after different raw end tag', () => {
+    rawTest('text inside raw text element, after different raw end tag', () => {
       assertRender(
         html`<script type="foo"></style>"<div a=${'A'}></div>"</script>`,
         '<script type="foo"></style>"<div a=A></div>"</script>'
       );
     });
 
-    test.skip('renders inside raw-like element', () => {
+    test('renders inside raw-like element', () => {
       assertRender(html`<scriptx>${'foo'}</scriptx>`, '<scriptx>foo</scriptx>');
     });
 
-    test.skip('attribute after raw text element', () => {
+    test('attribute after raw text element', () => {
       assertRender(
         html`<script></script><div a=${'A'}></div>`,
         '<script></script><div a="A"></div>'
@@ -423,7 +442,7 @@ suite('lit-html', () => {
       ]);
     });
 
-    test.skip('text after quoted bound attribute', () => {
+    rawTest('text after quoted bound attribute', () => {
       assertRender(html`<div a="${'A'}">${'A'}</div>`, '<div a="A">A</div>');
       assertRender(
         html`<script type="foo" a="${'A'}">${'A'}</script>`,
@@ -431,7 +450,7 @@ suite('lit-html', () => {
       );
     });
 
-    test.skip('text after unquoted bound attribute', () => {
+    rawTest('text after unquoted bound attribute', () => {
       assertRender(html`<div a=${'A'}>${'A'}</div>`, '<div a="A">A</div>');
       assertRender(
         html`<script type="foo" a=${'A'}>${'A'}</script>`,
@@ -472,7 +491,7 @@ suite('lit-html', () => {
       assertRender(html`<div ${`c`} a="b"></div>`, '<div a="b"></div>');
     });
 
-    test.skip('"dynamic" tag name', () => {
+    devModeTest('"dynamic" tag name', () => {
       const template = html`<${'A'}></${'A'}>`;
       if (DEV_MODE) {
         assert.throws(() => {
@@ -484,7 +503,7 @@ suite('lit-html', () => {
       }
     });
 
-    test.skip('malformed "dynamic" tag name', () => {
+    devModeTest('malformed "dynamic" tag name', () => {
       // `</ ` starts a comment
       const template = html`<${'A'}></ ${'A'}>`;
       if (DEV_MODE) {
@@ -508,15 +527,15 @@ suite('lit-html', () => {
       // assertRender(html`<div></div ${'A'}>${'B'}`, '<div></div>B');
     });
 
-    test.skip('comment', () => {
+    commentTest('comment', () => {
       assertRender(html`<!--${'A'}-->`, '<!---->');
     });
 
-    test.skip('comment with attribute-like content', () => {
+    commentTest('comment with attribute-like content', () => {
       assertRender(html`<!-- a=${'A'}-->`, '<!-- a=-->');
     });
 
-    test.skip('comment with element-like content', () => {
+    commentTest('comment with element-like content', () => {
       assertRender(html`<!-- <div>${'A'}</div> -->`, '<!-- <div></div> -->');
     });
 
@@ -585,31 +604,36 @@ suite('lit-html', () => {
     });
 
     // Weirdly broken by the fake node insertion
-    test.skip('renders/updates when specifying `renderBefore` node or not', () => {
-      const template = html`<span></span>`;
-      const renderBefore = container.appendChild(document.createElement('div'));
-      assertRender(template, '<div></div><span></span>');
-      const containerRenderedNode = container.querySelector('span');
-      assertRender(template, '<span></span><div></div><span></span>', {
-        renderBefore,
-      });
-      const beforeRenderedNode = container.querySelector('span');
-      // Ensure re-render updates rather than re-rendering.
-      assertRender(template, '<span></span><div></div><span></span>');
-      assert.equal(
-        container.querySelector('span:last-of-type'),
-        containerRenderedNode
-      );
-      assert.equal(container.querySelector('span'), beforeRenderedNode);
-      assertRender(template, '<span></span><div></div><span></span>', {
-        renderBefore,
-      });
-      assert.equal(
-        container.querySelector('span:last-of-type'),
-        containerRenderedNode
-      );
-      assert.equal(container.querySelector('span'), beforeRenderedNode);
-    });
+    brokenByFakeWrapper(
+      'renders/updates when specifying `renderBefore` node or not',
+      () => {
+        const template = html`<span></span>`;
+        const renderBefore = container.appendChild(
+          document.createElement('div')
+        );
+        assertRender(template, '<div></div><span></span>');
+        const containerRenderedNode = container.querySelector('span');
+        assertRender(template, '<span></span><div></div><span></span>', {
+          renderBefore,
+        });
+        const beforeRenderedNode = container.querySelector('span');
+        // Ensure re-render updates rather than re-rendering.
+        assertRender(template, '<span></span><div></div><span></span>');
+        assert.equal(
+          container.querySelector('span:last-of-type'),
+          containerRenderedNode
+        );
+        assert.equal(container.querySelector('span'), beforeRenderedNode);
+        assertRender(template, '<span></span><div></div><span></span>', {
+          renderBefore,
+        });
+        assert.equal(
+          container.querySelector('span:last-of-type'),
+          containerRenderedNode
+        );
+        assert.equal(container.querySelector('span'), beforeRenderedNode);
+      }
+    );
 
     test('back-to-back expressions', () => {
       const template = (a: unknown, b: unknown) =>
@@ -1652,7 +1676,7 @@ suite('lit-html', () => {
     );
   });
 
-  suite.skip('compiled', () => {
+  compiledSuite('compiled', () => {
     const branding_tag = (s: TemplateStringsArray) => s;
 
     test('only text', () => {
@@ -1865,23 +1889,24 @@ suite('lit-html', () => {
         render(makeTemplate(checkPart()), container);
       });
 
-      // this is broken by the <fake> wrapping node.
-      test.skip(`part's parentNode is the logical DOM parent`, async () => {
-        let resolve: () => void;
-        let reject: (e: unknown) => void;
-        // This Promise settles when then until() directive calls the directive
-        // in asyncCheckDiv.
-        const asyncCheckDivRendered = new Promise<void>((res, rej) => {
-          resolve = res;
-          reject = rej;
-        });
-        const asyncCheckDiv = Promise.resolve(
-          checkPart('div', (e?: unknown) =>
-            e === undefined ? resolve() : reject(e)
-          )
-        );
-        const makeTemplate = () =>
-          html`
+      brokenByFakeWrapper(
+        `part's parentNode is the logical DOM parent`,
+        async () => {
+          let resolve: () => void;
+          let reject: (e: unknown) => void;
+          // This Promise settles when then until() directive calls the directive
+          // in asyncCheckDiv.
+          const asyncCheckDivRendered = new Promise<void>((res, rej) => {
+            resolve = res;
+            reject = rej;
+          });
+          const asyncCheckDiv = Promise.resolve(
+            checkPart('div', (e?: unknown) =>
+              e === undefined ? resolve() : reject(e)
+            )
+          );
+          const makeTemplate = () =>
+            html`
             ${checkPart('container')}
             <div id="div">
               ${checkPart('div')}
@@ -1898,12 +1923,12 @@ suite('lit-html', () => {
             </div>
           `;
 
-        render(makeTemplate(), container);
-        await asyncCheckDivRendered;
-      });
+          render(makeTemplate(), container);
+          await asyncCheckDivRendered;
+        }
+      );
 
-      // this is broken by the <fake> wrapping node.
-      test.skip(`when the parentNode is null`, async () => {
+      brokenByFakeWrapper(`when the parentNode is null`, async () => {
         const template = () => html`${checkPart('container')}`;
 
         // Render the template to instantiate the directive
@@ -1917,7 +1942,7 @@ suite('lit-html', () => {
       });
 
       // this is broken by the <fake> wrapping node.
-      test.skip(`part's parentNode is correct when rendered into a document fragment`, async () => {
+      brokenByFakeWrapper(`part's parentNode is correct when rendered into a document fragment`, async () => {
         debugger;
         const fragment = document.createDocumentFragment();
         (fragment as unknown as {id: string}).id = 'fragment';
@@ -3225,7 +3250,7 @@ suite('lit-html', () => {
       warnings = [];
     };
 
-    test.skip('warns on octal escape', () => {
+    brokenByFakeWrapper('warns on octal escape', () => {
       try {
         render(html`\2022`, container);
         assert.fail();
