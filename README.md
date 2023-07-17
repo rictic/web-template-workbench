@@ -22,3 +22,13 @@ npx wtr "development/test/index_test.js" --config ./web-test-runner.config.js --
 Then open http://localhost:8000/ in Chrome Canary with the Experimental Web Platform Features flag enabled and select `index_test.js` to see run lit-html's extensive test suite against a DOM Parts based implementation.
 
 Note that we do feature detection, so if you open it with a normal browser it will run with the production implementation. Note also that many of the tests are failing because we're using a hacky work around for https://lit.dev/playground/#gist=fed0fb43c92cd1198e66f84b34ad48d4 that inserts additional `<div>`s.
+
+Known issues with this prototype:
+
+- Rendering inside of comments is broken
+- Rendering inside of raw text nodes is broken
+
+Known rough edges in DOM Parts:
+
+- ChildNodePart ordering is based on the parent, but previousSibling would be better. Should be fixed in Canary on July 18th or 19th or so.
+- ChildNodePart can't be a direct child of a DocumentFragment. This is a trickier fix.

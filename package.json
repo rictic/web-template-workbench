@@ -76,7 +76,9 @@
         },
         "MODE": "dev"
       },
-      "files": [],
+      "files": [
+        "web-test-runner.config.js"
+      ],
       "output": []
     },
     "test:prod": {
@@ -90,7 +92,9 @@
         },
         "MODE": "prod"
       },
-      "files": [],
+      "files": [
+        "web-test-runner.config.js"
+      ],
       "output": []
     }
   },
