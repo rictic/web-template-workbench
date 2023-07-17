@@ -13,13 +13,15 @@ import {
   rawTextElement,
   trustFromTemplateString,
 } from './get-template-html.js';
-import {DEV_MODE, ENABLE_EXTRA_SECURITY_HOOKS, NODE_MODE} from './modes.js';
-import {RenderOptions} from './render.js';
 import {
-  ValueSanitizer,
-  createSanitizer,
-  sanitizerActive,
-} from './sanitizer.js';
+  DEV_MODE,
+  ENABLE_EXTRA_SECURITY_HOOKS,
+  NODE_MODE,
+  useDomParts,
+} from './modes.js';
+import {RenderOptions} from './render.js';
+import {ValueSanitizer, createSanitizer, sanitizerActive} from './sanitizer.js';
+import {templateFromLiterals} from './template-from-literals.js';
 import {SVG_RESULT, TemplateResult} from './ttl.js';
 
 // Allows minifiers to rename references to globalThis
@@ -182,9 +184,8 @@ export function resolveDirective(
   return value;
 }
 
-/** @internal */
-export type {Template};
-class Template {
+export type Template = ManualTemplate | DomPartsTemplate;
+class ManualTemplate {
   /** @internal */
   el!: HTMLTemplateElement;
 
@@ -203,7 +204,7 @@ class Template {
 
     // Create template element
     const [html, attrNames] = getTemplateHtml(strings, type);
-    this.el = Template.createElement(html, options);
+    this.el = ManualTemplate.createElement(html, options);
     walker.currentNode = this.el.content;
 
     // Re-parent SVG nodes into template root
@@ -332,7 +333,7 @@ class Template {
  * An updateable instance of a Template. Holds references to the Parts used to
  * update the template instance.
  */
-export class TemplateInstance implements Disconnectable {
+class ManualTemplateInstance implements Disconnectable {
   _$template: Template;
   _$parts: Array<Part | undefined> = [];
 
@@ -425,6 +426,184 @@ export class TemplateInstance implements Disconnectable {
     }
   }
 }
+
+class DomPartsTemplate {
+  /** @internal */
+  el!: HTMLTemplateElement;
+
+  readonly parts: Array<TemplatePart> = [];
+
+  constructor(
+    // This property needs to remain unminified.
+    {strings, ['_$litType$']: type}: TemplateResult,
+    _options?: RenderOptions
+  ) {
+    // Create template element
+    this.el = templateFromLiterals(strings);
+    // Re-parent SVG nodes into template root
+    if (type === SVG_RESULT) {
+      const svgElement = this.el.content.firstChild!;
+      svgElement.replaceWith(...svgElement.childNodes);
+    }
+
+    const parts = this.el.content.getPartRoot().getParts();
+    let index = -1;
+    for (const part of parts) {
+      index++;
+      if (part instanceof NodePart) {
+        let attributePart:
+          | undefined
+          | (Omit<AttributeTemplatePart, 'strings'> & {strings: string[]});
+
+        for (let i = 0; i < part.metadata.length; i++) {
+          const code = part.metadata[i];
+          if (code === 'd') {
+            if (attributePart !== undefined) {
+              this.parts.push(attributePart);
+              attributePart = undefined;
+            }
+            this.parts.push({
+              type: ELEMENT_PART,
+              index,
+            });
+          } else if (code === 'attr') {
+            if (attributePart !== undefined) {
+              this.parts.push(attributePart);
+            }
+            let name = part.metadata[++i];
+            let ctor: typeof AttributePart = AttributePart;
+            if (name.startsWith('.')) {
+              ctor = PropertyPart;
+              name = name.slice(1);
+            } else if (name.startsWith('@')) {
+              ctor = EventPart;
+              name = name.slice(1);
+            }
+            attributePart = {
+              type: ATTRIBUTE_PART,
+              index,
+              name,
+              ctor,
+              strings: [],
+            };
+          } else if (code[0] === '"') {
+            attributePart!.strings.push(JSON.parse(code));
+          }
+        }
+      } else if (part instanceof ChildNodePart) {
+        this.parts.push({
+          type: CHILD_PART,
+          index,
+        });
+      }
+    }
+  }
+}
+
+/**
+ * An updateable instance of a Template. Holds references to the Parts used to
+ * update the template instance.
+ */
+class DomPartsTemplateInstance implements Disconnectable {
+  _$template: Template;
+  _$parts: Array<Part | undefined> = [];
+
+  /** @internal */
+  _$parent: ChildPart;
+  /** @internal */
+  _$disconnectableChildren?: Set<Disconnectable> = undefined;
+
+  constructor(template: DomPartsTemplate, parent: ChildPart) {
+    this._$template = template;
+    this._$parent = parent;
+  }
+
+  // Called by ChildPart parentNode getter
+  get parentNode() {
+    return this._$parent.parentNode;
+  }
+
+  // See comment in Disconnectable interface for why this is a getter
+  get _$isConnected() {
+    return this._$parent._$isConnected;
+  }
+
+  // This method is separate from the constructor because we need to return a
+  // DocumentFragment and we don't want to hold onto it with an instance field.
+  _clone(options: RenderOptions | undefined) {
+    const {
+      el: {content},
+      parts: parts,
+    } = this._$template;
+    const domPartRoot = content.getPartRoot().clone();
+    const domParts = domPartRoot.getParts();
+    const fragment = domPartRoot.rootContainer;
+
+    for (const part of parts) {
+      const domPart = domParts[part.index];
+      switch (part.type) {
+        case CHILD_PART:
+          this._$parts.push(
+            new ChildPart(
+              (domPart as ChildNodePart).previousSibling,
+              (domPart as ChildNodePart).nextSibling as ChildNode,
+              this,
+              options
+            )
+          );
+          break;
+        case ELEMENT_PART:
+          this._$parts.push(
+            new ElementPart(
+              (domPart as NodePart).node as Element,
+              this,
+              options
+            )
+          );
+          break;
+        case ATTRIBUTE_PART: {
+          this._$parts.push(
+            new (part as AttributeTemplatePart).ctor(
+              (domPart as NodePart).node as HTMLElement,
+              (part as AttributeTemplatePart).name,
+              (part as AttributeTemplatePart).strings,
+              this,
+              options
+            )
+          );
+          break;
+        }
+      }
+    }
+    return fragment;
+  }
+
+  _update(values: Array<unknown>) {
+    let i = 0;
+    for (const part of this._$parts) {
+      if (part !== undefined) {
+        if ((part as AttributePart).strings !== undefined) {
+          (part as AttributePart)._$setValue(values, part as AttributePart, i);
+          // The number of values the part consumes is part.strings.length - 1
+          // since values are in between template spans. We increment i by 1
+          // later in the loop, so increment it by part.strings.length - 2 here
+          i += (part as AttributePart).strings!.length - 2;
+        } else {
+          part._$setValue(values[i]);
+        }
+      }
+      i++;
+    }
+  }
+}
+
+const Template = useDomParts ? DomPartsTemplate : ManualTemplate;
+export const TemplateInstance = useDomParts
+  ? DomPartsTemplateInstance
+  : ManualTemplateInstance;
+export type TemplateInstance =
+  | DomPartsTemplateInstance
+  | ManualTemplateInstance;
 
 /*
  * Parts
@@ -712,7 +891,7 @@ export class ChildPart implements Disconnectable {
       typeof type === 'number'
         ? this._$getTemplate(result as TemplateResult)
         : (type.el === undefined &&
-            (type.el = Template.createElement(
+            (type.el = ManualTemplate.createElement(
               trustFromTemplateString(type.h, type.h[0]),
               this.options
             )),
