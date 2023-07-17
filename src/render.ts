@@ -1,5 +1,5 @@
-import { ChildPart, RootPart } from "./current/template.js";
-import { DEV_MODE} from "./modes.js";
+import {ChildPart, RootPart} from './template.js';
+import {DEV_MODE} from './modes.js';
 
 /**
  * Object specifying options for controlling lit-html rendering. Note that

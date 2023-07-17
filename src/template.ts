@@ -1,4 +1,4 @@
-import type {Directive, DirectiveResult, PartInfo} from '../directive.js';
+import type {Directive, DirectiveResult, PartInfo} from './directive.js';
 import {
   boundAttributeSuffix,
   getTemplateHtml,
@@ -6,15 +6,15 @@ import {
   markerMatch,
   rawTextElement,
   trustFromTemplateString,
-} from '../get-template-html.js';
-import {DEV_MODE, ENABLE_EXTRA_SECURITY_HOOKS, NODE_MODE} from '../modes.js';
-import {RenderOptions} from '../render.js';
+} from './get-template-html.js';
+import {DEV_MODE, ENABLE_EXTRA_SECURITY_HOOKS, NODE_MODE} from './modes.js';
+import {RenderOptions} from './render.js';
 import {
   ValueSanitizer,
   createSanitizer,
   sanitizerActive,
-} from '../sanitizer.js';
-import {SVG_RESULT, TemplateResult} from '../ttl.js';
+} from './sanitizer.js';
+import {SVG_RESULT, TemplateResult} from './ttl.js';
 
 // Allows minifiers to rename references to globalThis
 const global = globalThis;

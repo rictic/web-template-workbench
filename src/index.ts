@@ -5,7 +5,17 @@
  */
 
 // IMPORTANT: these imports must be type-only
-import { AttributePart, BooleanAttributePart, ChildPart, ElementPart, EventPart, PropertyPart, TemplateInstance, isIterable, resolveDirective } from './current/template.js';
+import {
+  AttributePart,
+  BooleanAttributePart,
+  ChildPart,
+  ElementPart,
+  EventPart,
+  PropertyPart,
+  TemplateInstance,
+  isIterable,
+  resolveDirective,
+} from './template.js';
 import {
   boundAttributeSuffix,
   getTemplateHtml,
@@ -16,7 +26,7 @@ import {HTML_RESULT} from './ttl.js';
 export * from './ttl.js';
 export * from './render.js';
 export * from './sanitizer.js';
-export * from './current/template.js';
+export * from './template.js';
 
 /**
  * A sentinel value that signals that a value was handled by a directive and
