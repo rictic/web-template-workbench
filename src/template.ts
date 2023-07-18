@@ -17,8 +17,6 @@ import {
   DEV_MODE,
   ENABLE_EXTRA_SECURITY_HOOKS,
   NODE_MODE,
-  mustSortParts,
-  sortDomParts,
   useDomParts,
 } from './modes.js';
 import {RenderOptions} from './render.js';
@@ -448,13 +446,7 @@ class DomPartsTemplate {
       svgElement.replaceWith(...svgElement.childNodes);
     }
 
-    const parts = (() => {
-      const unsorted = this.el.content.getPartRoot().getParts();
-      if (mustSortParts) {
-        return sortDomParts(unsorted);
-      }
-      return unsorted;
-    })();
+    const parts = this.el.content.getPartRoot().getParts();
     let index = -1;
     for (const part of parts) {
       index++;
@@ -550,13 +542,7 @@ class DomPartsTemplateInstance implements Disconnectable {
       parts: parts,
     } = this._$template;
     const domPartRoot = content.getPartRoot().clone();
-    const domParts = (() => {
-      const unsorted = domPartRoot.getParts();
-      if (mustSortParts) {
-        return sortDomParts(unsorted);
-      }
-      return unsorted;
-    })();
+    const domParts = domPartRoot.getParts();
     const fragment = document.adoptNode(domPartRoot.rootContainer);
     // See: https://github.com/tbondwilkinson/dom-parts/issues/6
     customElements.upgrade(fragment);

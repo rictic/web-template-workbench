@@ -43,7 +43,7 @@ import {createRef, ref} from '../directives/ref.js';
 // For compiled template tests
 import {_$LH} from '../private-ssr-support.js';
 import {until} from '../directives/until.js';
-import {DEV_MODE, mustSortParts, useDomParts} from '../modes.js';
+import {DEV_MODE} from '../modes.js';
 import {makeAsserts} from './test-utils/assert-render.js';
 const {AttributePart} = _$LH;
 
@@ -186,12 +186,6 @@ suite('lit-html', () => {
         '<a>foo</a><h1>bar</h1>'
       );
     });
-
-    if (useDomParts) {
-      test('renders in an unexpected order', () => {
-        assert.equal(mustSortParts, true);
-      });
-    }
 
     test('renders expressions with preceding elements', () => {
       // This is nearly the same test case as above, but was causing a
