@@ -29,6 +29,7 @@ Known issues with this prototype:
 - Rendering inside of raw text nodes is broken
 - Our DEV_MODE checks to throw when rendering in `<template>` don't work
 - Compiled templates don't work right
+- We have to call customElements.upgrade() after partRoot.clone(), which is inefficient
 
 Known rough edges in DOM Parts:
 
