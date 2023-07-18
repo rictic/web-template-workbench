@@ -5,9 +5,10 @@
  */
 
 import {unsafeSVG} from '../../directives/unsafe-svg.js';
-import {render, html, nothing, noChange} from '../../index.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
+import {render, nothing, noChange} from '../../index.js';
 import {assert} from '@esm-bundle/chai';
+import {makeAsserts} from '../test-utils/assert-render.js';
+import {html} from '../test-utils/dom-parts.js';
 
 suite('unsafeSVG', () => {
   let container: HTMLElement;
@@ -15,6 +16,8 @@ suite('unsafeSVG', () => {
   setup(() => {
     container = document.createElement('div');
   });
+
+  const {assertContent} = makeAsserts(() => container);
 
   test('renders SVG', () => {
     render(
@@ -24,7 +27,7 @@ suite('unsafeSVG', () => {
         )}</svg>`,
       container
     );
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg>before<line x1="0" y1="0" x2="10" y2="10" stroke="black"></line></svg>',
       '<svg>before<line stroke="black" x1="0" y1="0" x2="10" y2="10"></line></svg>',
       '<svg xmlns="http://www.w3.org/2000/svg">before<line stroke="black" x1="0" y1="0" x2="10" y2="10" /></svg>',
@@ -35,41 +38,26 @@ suite('unsafeSVG', () => {
 
   test('rendering `nothing` renders empty string to content', () => {
     render(html`<svg>before${unsafeSVG(nothing)}after</svg>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<svg>beforeafter</svg>'
-    );
+    assertContent('<svg>beforeafter</svg>');
   });
 
   test('rendering `noChange` does not change the previous content', () => {
     const template = (v: string | typeof noChange) =>
       html`<svg>before${unsafeSVG(v)}after</svg>`;
     render(template('<g>Hi</g>'), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<svg>before<g>Hi</g>after</svg>'
-    );
+    assertContent('<svg>before<g>Hi</g>after</svg>');
     render(template(noChange), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<svg>before<g>Hi</g>after</svg>'
-    );
+    assertContent('<svg>before<g>Hi</g>after</svg>');
   });
 
   test('rendering `undefined` renders empty string to content', () => {
     render(html`<svg>before${unsafeSVG(undefined)}after</svg>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<svg>beforeafter</svg>'
-    );
+    assertContent('<svg>beforeafter</svg>');
   });
 
   test('rendering `null` renders empty string to content', () => {
     render(html`<svg>before${unsafeSVG(null)}after</svg>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<svg>beforeafter</svg>'
-    );
+    assertContent('<svg>beforeafter</svg>');
   });
 
   test('dirty checks primitive values', () => {
@@ -78,7 +66,7 @@ suite('unsafeSVG', () => {
 
     // Initial render
     render(t(), container);
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg>aaa</svg>',
       '<svg xmlns="http://www.w3.org/2000/svg">aaa</svg>',
     ]);
@@ -88,14 +76,14 @@ suite('unsafeSVG', () => {
     // persist through the next render if dirty checking works.
     const text = container.querySelector('svg')!.childNodes[1] as Text;
     text.textContent = 'bbb';
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg>bbb</svg>',
       '<svg xmlns="http://www.w3.org/2000/svg">bbb</svg>',
     ]);
 
     // Re-render with the same value
     render(t(), container);
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg>bbb</svg>',
       '<svg xmlns="http://www.w3.org/2000/svg">bbb</svg>',
     ]);
@@ -116,21 +104,21 @@ suite('unsafeSVG', () => {
 
     // Initial unsafeSVG render
     render(t(unsafeSVG(value)), container);
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg><text></text></svg>',
       '<svg xmlns="http://www.w3.org/2000/svg"><text /></svg>',
     ]);
 
     // Re-render with a non-unsafeSVG value
     render(t(primitive), container);
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg>aaa</svg>',
       '<svg xmlns="http://www.w3.org/2000/svg">aaa</svg>',
     ]);
 
     // Re-render with unsafeSVG again
     render(t(unsafeSVG(value)), container);
-    assert.oneOf(stripExpressionMarkers(container.innerHTML), [
+    assertContent([
       '<svg><text></text></svg>',
       '<svg xmlns="http://www.w3.org/2000/svg"><text /></svg>',
     ]);

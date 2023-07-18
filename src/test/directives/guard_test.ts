@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import {html, nothing, render} from '../../index.js';
+import {nothing, render} from '../../index.js';
 import {guard} from '../../directives/guard.js';
 import {Directive, directive, PartInfo} from '../../directive.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
 import {assert} from '@esm-bundle/chai';
+import {makeAsserts} from '../test-utils/assert-render.js';
+import {html} from '../test-utils/dom-parts.js';
 
 suite('guard', () => {
   let container: HTMLDivElement;
@@ -21,6 +22,8 @@ suite('guard', () => {
     container = document.createElement('div');
   });
 
+  const {assertContent} = makeAsserts(() => container);
+
   test('re-renders only on identity changes', () => {
     let callCount = 0;
     let renderCount = 0;
@@ -32,24 +35,15 @@ suite('guard', () => {
 
     renderCount += 1;
     renderGuarded('foo', guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>Template 1</div>'
-    );
+    assertContent('<div>Template 1</div>');
 
     renderCount += 1;
     renderGuarded('foo', guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>Template 1</div>'
-    );
+    assertContent('<div>Template 1</div>');
 
     renderCount += 1;
     renderGuarded('bar', guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>Template 3</div>'
-    );
+    assertContent('<div>Template 3</div>');
 
     assert.equal(callCount, 2);
   });
@@ -65,11 +59,11 @@ suite('guard', () => {
 
     renderCount += 1;
     renderGuarded(undefined, guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+    assertContent('<div>1</div>');
 
     renderCount += 1;
     renderGuarded(undefined, guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+    assertContent('<div>1</div>');
 
     assert.equal(callCount, 1);
   });
@@ -85,11 +79,11 @@ suite('guard', () => {
 
     renderCount += 1;
     renderGuarded(nothing, guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+    assertContent('<div>1</div>');
 
     renderCount += 1;
     renderGuarded(nothing, guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+    assertContent('<div>1</div>');
 
     assert.equal(callCount, 1);
   });
@@ -104,24 +98,15 @@ suite('guard', () => {
     };
 
     renderGuarded([items], guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><ul><li>foo</li><li>bar</li></ul></div>'
-    );
+    assertContent('<div><ul><li>foo</li><li>bar</li></ul></div>');
 
     items.push('baz');
     renderGuarded([items], guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><ul><li>foo</li><li>bar</li></ul></div>'
-    );
+    assertContent('<div><ul><li>foo</li><li>bar</li></ul></div>');
 
     items = [...items];
     renderGuarded([items], guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><ul><li>foo</li><li>bar</li><li>baz</li></ul></div>'
-    );
+    assertContent('<div><ul><li>foo</li><li>bar</li><li>baz</li></ul></div>');
 
     assert.equal(callCount, 2);
   });
@@ -136,23 +121,14 @@ suite('guard', () => {
     };
 
     renderGuarded(items, guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><ul><li>foo</li><li>bar</li></ul></div>'
-    );
+    assertContent('<div><ul><li>foo</li><li>bar</li></ul></div>');
 
     renderGuarded(['foo', 'bar'], guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><ul><li>foo</li><li>bar</li></ul></div>'
-    );
+    assertContent('<div><ul><li>foo</li><li>bar</li></ul></div>');
 
     items.push('baz');
     renderGuarded(items, guardedTemplate);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><ul><li>foo</li><li>bar</li><li>baz</li></ul></div>'
-    );
+    assertContent('<div><ul><li>foo</li><li>bar</li><li>baz</li></ul></div>');
 
     assert.equal(callCount, 2);
   });
@@ -180,13 +156,13 @@ suite('guard', () => {
     };
 
     renderGuarded('foo', guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+    assertContent('<div>1</div>');
 
     renderGuarded('foo', guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+    assertContent('<div>1</div>');
 
     renderGuarded('bar', guardedTemplate);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>2</div>');
+    assertContent('<div>2</div>');
 
     assert.equal(renderCount, 2);
     assert.equal(directiveConstructedCount, 1);

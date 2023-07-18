@@ -5,11 +5,9 @@
  */
 import {
   ChildPart,
-  CompiledTemplateResult,
   noChange,
   nothing,
   render,
-  RenderOptions,
   svg,
   TemplateResult,
   SVGTemplateResult,
@@ -23,7 +21,6 @@ import {
   brokenByFakeWrapper,
   commentTest,
   compiledSuite,
-  devModeTest,
   fakeNodeMatcher,
   html,
   rawTest,
@@ -37,10 +34,7 @@ import {
   DirectiveParameters,
 } from '../directive.js';
 import {assert} from '@esm-bundle/chai';
-import {
-  stripExpressionComments,
-  stripExpressionMarkers,
-} from '@lit-labs/testing';
+import {stripExpressionComments} from '@lit-labs/testing';
 import {repeat} from '../directives/repeat.js';
 import {AsyncDirective} from '../async-directive.js';
 
@@ -50,6 +44,7 @@ import {createRef, ref} from '../directives/ref.js';
 import {_$LH} from '../private-ssr-support.js';
 import {until} from '../directives/until.js';
 import {DEV_MODE, mustSortParts, useDomParts} from '../modes.js';
+import {makeAsserts} from './test-utils/assert-render.js';
 const {AttributePart} = _$LH;
 
 type AttributePart = InstanceType<typeof AttributePart>;
@@ -80,27 +75,7 @@ suite('lit-html', () => {
     container.id = 'container';
   });
 
-  const assertRender = (
-    r: TemplateResult | CompiledTemplateResult,
-    expected: string | string[],
-    options?: RenderOptions,
-    message?: string
-  ) => {
-    const part = render(r, container, options);
-    assertContent(expected, message);
-    return part;
-  };
-
-  const assertContent = (expected: string | string[], message?: string) => {
-    const cleanActual = stripExpressionComments(
-      container.innerHTML.replace(fakeNodeMatcher, '')
-    );
-    if (Array.isArray(expected)) {
-      assert.oneOf(cleanActual, expected, message);
-    } else {
-      assert.equal(cleanActual, expected, message);
-    }
-  };
+  const {assertRender, assertContent} = makeAsserts(() => container);
 
   /**
    * These test the ability to insert the correct expression marker into the
@@ -449,7 +424,7 @@ suite('lit-html', () => {
       assertRender(html`<div ${`c`} a="b"></div>`, '<div a="b"></div>');
     });
 
-    devModeTest('"dynamic" tag name', () => {
+    commentTest('"dynamic" tag name', () => {
       const template = html`<${'A'}></${'A'}>`;
       if (DEV_MODE) {
         assert.throws(() => {
@@ -457,11 +432,11 @@ suite('lit-html', () => {
         });
       } else {
         render(template, container);
-        assert.equal(stripExpressionMarkers(container.innerHTML), '<></>');
+        assertContent('<></>');
       }
     });
 
-    devModeTest('malformed "dynamic" tag name', () => {
+    commentTest('malformed "dynamic" tag name', () => {
       // `</ ` starts a comment
       const template = html`<${'A'}></ ${'A'}>`;
       if (DEV_MODE) {
@@ -470,10 +445,7 @@ suite('lit-html', () => {
         });
       } else {
         render(template, container);
-        assert.equal(
-          stripExpressionMarkers(container.innerHTML),
-          '<><!-- --></>'
-        );
+        assertContent('<><!-- --></>');
       }
     });
 
@@ -3178,7 +3150,7 @@ suite('lit-html', () => {
     } catch {
       threwError = true;
     }
-    assert.equal(stripExpressionMarkers(container.innerHTML), '');
+    assertContent('');
     assert.isTrue(
       threwError,
       `Expected an error when rendering a spoofed template result`

@@ -6,10 +6,11 @@
 
 import {assert} from '@esm-bundle/chai';
 import {until} from '../..//directives/until.js';
-import {html, nothing, render} from '../../index.js';
+import {nothing, render} from '../../index.js';
 import {Deferred} from '../test-utils/deferred.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
 import {memorySuite} from '../test-utils/memory.js';
+import {html} from '../test-utils/dom-parts.js';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 const laterTask = () => new Promise((resolve) => setTimeout(resolve));
 
@@ -22,13 +23,15 @@ suite('until directive', () => {
     deferred = new Deferred<string>();
   });
 
+  const {assertContent} = makeAsserts(() => container);
+
   test('renders a Promise when it resolves', async () => {
     const deferred = new Deferred<any>();
     render(html`<div>${until(deferred.promise)}</div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     deferred.resolve('foo');
     await deferred.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders non-Promises immediately', async () => {
@@ -37,13 +40,10 @@ suite('until directive', () => {
       html`<div>${until(deferred.promise, defaultContent)}</div>`,
       container
     );
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><span>loading...</span></div>'
-    );
+    assertContent('<div><span>loading...</span></div>');
     deferred.resolve('foo');
     await deferred.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders primitive low-priority content only once', async () => {
@@ -54,16 +54,13 @@ suite('until directive', () => {
       );
 
     go();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>loading...</div>'
-    );
+    assertContent('<div>loading...</div>');
     deferred.resolve('foo');
     await deferred.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     go();
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders non-primitive low-priority content only once', async () => {
@@ -74,68 +71,50 @@ suite('until directive', () => {
       );
 
     go();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>loading...</div>'
-    );
+    assertContent('<div>loading...</div>');
     deferred.resolve('foo');
     await deferred.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     go();
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders changing defaultContent', async () => {
     const t = (d: any) => html`<div>${until(deferred.promise, d)}</div>`;
     render(t('A'), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>A</div>');
+    assertContent('<div>A</div>');
 
     render(t('B'), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>B</div>');
+    assertContent('<div>B</div>');
 
     deferred.resolve('C');
     await deferred.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>C</div>');
+    assertContent('<div>C</div>');
   });
 
   test('renders a Promise to an attribute', async () => {
     const promise = Promise.resolve('foo');
     render(html`<div test=${until(promise)}></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     await promise;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="foo"></div>'
-    );
+    assertContent('<div test="foo"></div>');
   });
 
   test('renders defaultContent to an attribute', async () => {
     const promise = Promise.resolve('foo');
     render(html`<div test=${until(promise, 'bar')}></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="bar"></div>'
-    );
+    assertContent('<div test="bar"></div>');
     await promise;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="foo"></div>'
-    );
+    assertContent('<div test="foo"></div>');
   });
 
   test('renders a Promise to an interpolated attribute', async () => {
     const promise = Promise.resolve('foo');
     render(html`<div test="value:${until(promise)}"></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="value:"></div>'
-    );
+    assertContent('<div test="value:"></div>');
     await promise;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="value:foo"></div>'
-    );
+    assertContent('<div test="value:foo"></div>');
   });
 
   test('renders a nothing fallback to an interpolated attribute', async () => {
@@ -144,48 +123,36 @@ suite('until directive', () => {
       html`<div test="value:${until(promise, nothing)}"></div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     await promise;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="value:foo"></div>'
-    );
+    assertContent('<div test="value:foo"></div>');
   });
 
   test('renders defaultContent to an interpolated attribute', async () => {
     const promise = Promise.resolve('foo');
     render(html`<div test="value:${until(promise, 'bar')}"></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="value:bar"></div>'
-    );
+    assertContent('<div test="value:bar"></div>');
     await promise;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test="value:foo"></div>'
-    );
+    assertContent('<div test="value:foo"></div>');
   });
 
   test('renders a Promise to a property', async () => {
     const promise = Promise.resolve('foo');
     render(html`<div .test=${until(promise)}></div>`, container);
     const div = container.querySelector('div');
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     assert.equal((div as any).test, undefined);
     await promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     assert.equal((div as any).test, 'foo');
   });
 
   test('renders a Promise to a boolean attribute', async () => {
     const promise = Promise.resolve(true);
     render(html`<div ?test=${until(promise)}></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     await promise;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div test=""></div>'
-    );
+    assertContent('<div test=""></div>');
   });
 
   test('renders a Promise to an event binding', async () => {
@@ -195,11 +162,11 @@ suite('until directive', () => {
     });
     render(html`<div @test=${until(promise)}></div>`, container);
     const div = container.querySelector('div')!;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     div.dispatchEvent(new CustomEvent('test'));
     assert.isFalse(called);
     await promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     div.dispatchEvent(new CustomEvent('test'));
     assert.isTrue(called);
   });
@@ -208,25 +175,19 @@ suite('until directive', () => {
     const t = (v: any) =>
       html`<div>${until(v, html`<span>loading...</span>`)}</div>`;
     render(t(deferred.promise), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><span>loading...</span></div>'
-    );
+    assertContent('<div><span>loading...</span></div>');
 
     const deferred2 = new Deferred<string>();
     render(t(deferred2.promise), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><span>loading...</span></div>'
-    );
+    assertContent('<div><span>loading...</span></div>');
 
     deferred2.resolve('bar');
     await deferred2.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
 
     deferred.resolve('foo');
     await deferred.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
   });
 
   test('renders racing Promises across renders correctly', async () => {
@@ -237,20 +198,20 @@ suite('until directive', () => {
 
     // First render, first Promise, no value
     render(t(deferred1.promise), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     // Second render, second Promise, still no value
     render(t(deferred2.promise), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     // Resolve the first Promise, should not update the container
     deferred1.resolve('foo');
     await deferred1.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     // Resolve the second Promise, should update the container
     deferred2.resolve('bar');
     await deferred2.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
   });
 
   test('renders Promises resolving in high-to-low priority', async () => {
@@ -262,17 +223,17 @@ suite('until directive', () => {
 
     // First render with neither Promise resolved
     render(t(), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     // Resolve the primary Promise, updates the DOM
     deferred1.resolve('foo');
     await deferred1.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     // Resolve the secondary Promise, should not update the container
     deferred2.resolve('bar');
     await deferred2.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders Promises resolving in low-to-high priority', async () => {
@@ -284,17 +245,17 @@ suite('until directive', () => {
 
     // First render with neither Promise resolved
     render(t(), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     // Resolve the secondary Promise, updates the DOM
     deferred2.resolve('bar');
     await deferred2.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
 
     // Resolve the primary Promise, updates the DOM
     deferred1.resolve('foo');
     await deferred1.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders Promises with changing priorities', async () => {
@@ -304,15 +265,15 @@ suite('until directive', () => {
     const t = (p1: any, p2: any) => html`<div>${until(p1, p2)}</div>`;
 
     render(t(promise1, promise2), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     // Await a microtask to let both Promise then callbacks go
     await 0;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     render(t(promise2, promise1), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
     await 0;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
   });
 
   test('renders low-priority content when arguments change', async () => {
@@ -323,31 +284,22 @@ suite('until directive', () => {
 
     // First render a high-priority value
     render(t('string', promise2), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>string</div>'
-    );
+    assertContent('<div>string</div>');
     // Await a microtask to let both Promise then callbacks go
     await 0;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>string</div>'
-    );
+    assertContent('<div>string</div>');
 
     // Then render new Promises with the low-priority Promise already resolved
     render(t(deferred1.promise, promise2), container);
     // Because they're Promises, nothing happens synchronously
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>string</div>'
-    );
+    assertContent('<div>string</div>');
     await 0;
     // Low-priority renders
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
     deferred1.resolve('foo');
     await deferred1.promise;
     // High-priority renders
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
   });
 
   test('renders Promises resolving after changing priority', async () => {
@@ -358,34 +310,31 @@ suite('until directive', () => {
 
     // First render with neither Promise resolved
     render(t(deferred1.promise, deferred2.promise), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     // Change priorities
     render(t(deferred2.promise, deferred1.promise), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     // Resolve the primary Promise, updates the DOM
     deferred1.resolve('foo');
     await deferred1.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     // Resolve the secondary Promise, also updates the DOM
     deferred2.resolve('bar');
     await deferred2.promise;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
   });
 
   test('renders a literal in a ChildPart', () => {
     render(html`${until('a')}`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), 'a');
+    assertContent('a');
   });
 
   test('renders a literal in an AttributePart', () => {
     render(html`<div data-attr="${until('a')}"></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="a"></div>'
-    );
+    assertContent('<div data-attr="a"></div>');
   });
 
   test('renders literals in an interpolated AttributePart', () => {
@@ -393,18 +342,12 @@ suite('until directive', () => {
       html`<div data-attr="other ${until('a')} ${until('b')}"></div>`,
       container
     );
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="other a b"></div>'
-    );
+    assertContent('<div data-attr="other a b"></div>');
   });
 
   test('renders a literal in a BooleanAttributePart', () => {
     render(html`<div ?data-attr="${until('a')}"></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr=""></div>'
-    );
+    assertContent('<div data-attr=""></div>');
   });
 
   test('renders a literal in an EventPart', () => {
@@ -425,10 +368,10 @@ suite('until directive', () => {
 
   test('renders a Promise in a ChildPart', async () => {
     render(html`${until(Promise.resolve('a'))}`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '');
+    assertContent('');
 
     await laterTask();
-    assert.equal(stripExpressionMarkers(container.innerHTML), 'a');
+    assertContent('a');
   });
 
   test('renders a Promise in a AttributePart', async () => {
@@ -436,13 +379,10 @@ suite('until directive', () => {
       html`<div data-attr="${until(Promise.resolve('a'))}"></div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await laterTask();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="a"></div>'
-    );
+    assertContent('<div data-attr="a"></div>');
   });
 
   test('renders Promises in an interpolated AttributePart', async () => {
@@ -452,16 +392,10 @@ suite('until directive', () => {
       )}"></div>`,
       container
     );
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="other  "></div>'
-    );
+    assertContent('<div data-attr="other  "></div>');
 
     await laterTask();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="other a b"></div>'
-    );
+    assertContent('<div data-attr="other a b"></div>');
   });
 
   test('renders a Promise in a BooleanAttributePart', async () => {
@@ -469,13 +403,10 @@ suite('until directive', () => {
       html`<div ?data-attr="${until(Promise.resolve('a'))}"></div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await laterTask();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr=""></div>'
-    );
+    assertContent('<div data-attr=""></div>');
   });
 
   test('renders a Promise in a PropertyPart', async () => {
@@ -514,10 +445,10 @@ suite('until directive', () => {
     };
 
     render(html`${until(thenable)}`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '');
+    assertContent('');
 
     await laterTask();
-    assert.equal(stripExpressionMarkers(container.innerHTML), 'a');
+    assertContent('a');
   });
 
   test('renders a promise-like in a AttributePart', async () => {
@@ -528,13 +459,10 @@ suite('until directive', () => {
     };
 
     render(html`<div data-attr="${until(thenable)}"></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await laterTask();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="a"></div>'
-    );
+    assertContent('<div data-attr="a"></div>');
   });
 
   test('renders promise-likes in an interpolated AttributePart', async () => {
@@ -556,16 +484,10 @@ suite('until directive', () => {
       )}"></div>`,
       container
     );
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="other  "></div>'
-    );
+    assertContent('<div data-attr="other  "></div>');
 
     await laterTask();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr="other a b"></div>'
-    );
+    assertContent('<div data-attr="other a b"></div>');
   });
 
   test('renders a promise-like in a BooleanAttributePart', async () => {
@@ -576,13 +498,10 @@ suite('until directive', () => {
     };
 
     render(html`<div ?data-attr="${until(thenable)}"></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await laterTask();
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div data-attr=""></div>'
-    );
+    assertContent('<div data-attr=""></div>');
   });
 
   test('renders a promise-like in a PropertyPart', async () => {
@@ -624,11 +543,11 @@ suite('until directive', () => {
     });
 
     render(html`${until(promise, 'default')}`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), 'default');
+    assertContent('default');
 
     resolvePromise!('resolved value');
     await laterTask();
-    assert.equal(stripExpressionMarkers(container.innerHTML), 'resolved value');
+    assertContent('resolved value');
   });
 
   test(
@@ -646,15 +565,15 @@ suite('until directive', () => {
       });
 
       render(html`${until(promiseA, promiseB, 'default')}`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'default');
+      assertContent('default');
 
       resolvePromiseA!('A');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'A');
+      assertContent('A');
 
       resolvePromiseB!('B');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'A');
+      assertContent('A');
     }
   );
 
@@ -673,15 +592,15 @@ suite('until directive', () => {
       });
 
       render(html`${until(promiseA, promiseB, 'default')}`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'default');
+      assertContent('default');
 
       resolvePromiseB!('B');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'B');
+      assertContent('B');
 
       resolvePromiseA!('A');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'A');
+      assertContent('A');
     }
   );
 
@@ -695,11 +614,11 @@ suite('until directive', () => {
       });
 
       render(html`${until('default', promise)}`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'default');
+      assertContent('default');
 
       resolvePromise!('resolved value');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), 'default');
+      assertContent('default');
     }
   );
 
@@ -711,19 +630,16 @@ suite('until directive', () => {
       });
 
       const part = render(html`<div>${until(promise)}</div>`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertContent('<div></div>');
 
       part.setConnected(false);
       resolvePromise!('resolved');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertContent('<div></div>');
 
       part.setConnected(true);
       await laterTask();
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>resolved</div>'
-      );
+      assertContent('<div>resolved</div>');
     });
 
     test('disconnection thrashing', async () => {
@@ -733,7 +649,7 @@ suite('until directive', () => {
       });
 
       const part = render(html`<div>${until(promise)}</div>`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertContent('<div></div>');
 
       part.setConnected(false);
       resolvePromise!('resolved');
@@ -742,14 +658,11 @@ suite('until directive', () => {
       part.setConnected(false);
 
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertContent('<div></div>');
 
       part.setConnected(true);
       await laterTask();
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>resolved</div>'
-      );
+      assertContent('<div>resolved</div>');
     });
 
     test('until does not render when newly rendered while disconnected', async () => {
@@ -761,20 +674,17 @@ suite('until directive', () => {
       const template = (v: unknown) => html`<div>${v}</div>`;
 
       const part = render(template(''), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertContent('<div></div>');
 
       part.setConnected(false);
       render(template(until(promise)), container);
       resolvePromise!('resolved');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertContent('<div></div>');
 
       part.setConnected(true);
       await laterTask();
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>resolved</div>'
-      );
+      assertContent('<div>resolved</div>');
     });
 
     test('until does not render when resolved and changed while disconnected', async () => {
@@ -786,22 +696,22 @@ suite('until directive', () => {
       const template = (v: unknown) => html`<div>${v}</div>`;
 
       const part = render(template('1'), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div>1</div>');
+      assertContent('<div>1</div>');
 
       part.setConnected(false);
       render(template(until(promise)), container);
       await laterTask();
 
       render(template('2'), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div>2</div>');
+      assertContent('<div>2</div>');
 
       resolvePromise!('resolved');
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div>2</div>');
+      assertContent('<div>2</div>');
 
       part.setConnected(true);
       await laterTask();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div>2</div>');
+      assertContent('<div>2</div>');
     });
 
     test('the same promise can be rendered into two until instances', async () => {
@@ -817,18 +727,12 @@ suite('until directive', () => {
         )}</span>`,
         container
       );
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>unresolved1</div><span>unresolved2</span>'
-      );
+      assertContent('<div>unresolved1</div><span>unresolved2</span>');
 
       resolvePromise!('resolved');
       await promise;
 
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>resolved</div><span>resolved</span>'
-      );
+      assertContent('<div>resolved</div><span>resolved</span>');
     });
   });
 

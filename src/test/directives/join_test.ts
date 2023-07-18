@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 import {html} from '../../index.js';
-import {makeAssertRender} from '../test-utils/assert-render.js';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 import {join} from '../../directives/join.js';
 
 suite('join', () => {
   let container: HTMLDivElement;
 
-  const assertRender = makeAssertRender(() => container);
+  const {assertRender} = makeAsserts(() => container);
 
   setup(() => {
     container = document.createElement('div');
