@@ -51,7 +51,7 @@ suite('live directive', () => {
       assert.equal(el.value, 'a');
     });
 
-    test.only('does not set a non-changed property', () => {
+    test('does not set a non-changed property', () => {
       const go = (x: string) =>
         render(html`<live-tester .x="${live(x)}"></live-tester>`, container);
       go('a');
