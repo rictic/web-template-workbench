@@ -558,7 +558,7 @@ class DomPartsTemplateInstance implements Disconnectable {
       return unsorted;
     })();
     const fragment = document.adoptNode(domPartRoot.rootContainer);
-    // This isn't right.
+    // See: https://github.com/tbondwilkinson/dom-parts/issues/6
     customElements.upgrade(fragment);
     for (const part of parts) {
       const domPart = domParts[part.index];

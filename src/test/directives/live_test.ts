@@ -56,9 +56,6 @@ suite('live directive', () => {
         render(html`<live-tester .x="${live(x)}"></live-tester>`, container);
       go('a');
       const el = container.querySelector('live-tester') as LiveTester;
-      console.log('hmmm');
-      console.log(el.constructor);
-      debugger;
       assert.equal(el.x, 'a');
       assert.equal(el._setCount, 1);
       go('a');

@@ -25,11 +25,11 @@ Note that we do feature detection, so if you open it with a normal browser it wi
 
 Known issues with this prototype:
 
+- Custom elements aren't upgraded until before they're connected. See https://github.com/tbondwilkinson/dom-parts/issues/6
+- Compiled templates haven't been implemented.
 - Rendering inside of comments is broken
 - Rendering inside of raw text nodes is broken
 - Our DEV_MODE checks to throw when rendering in `<template>` don't work
-- Compiled templates don't work right
-- We have to call customElements.upgrade() after partRoot.clone(), which is inefficient
 
 Known rough edges in DOM Parts:
 
