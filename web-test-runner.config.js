@@ -7,6 +7,8 @@ import { createRequire } from "module";
 import { playwrightLauncher } from "@web/test-runner-playwright";
 import { createSauceLabsLauncher } from "@web/test-runner-saucelabs";
 import { legacyPlugin } from "@web/dev-server-legacy";
+import * as fs from "node:fs";
+
 const mode = process.env.MODE || "dev";
 if (!["dev", "prod"].includes(mode)) {
   throw new Error(`MODE must be "dev" or "prod", was "${mode}"`);
@@ -134,6 +136,11 @@ See https://wiki.saucelabs.com/display/DOCS/Platform+Configurator for all option
     config.launchOptions.args.push(
       "-enable-experimental-web-platform-features"
     );
+    const chromeCanaryPath =
+      "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary";
+    if (fs.existsSync(chromeCanaryPath)) {
+      config.launchOptions.executablePath = chromeCanaryPath;
+    }
   }
   return [playwrightLauncher(config)];
 }
