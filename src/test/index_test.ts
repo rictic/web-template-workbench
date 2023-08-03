@@ -16,13 +16,11 @@ import {
   CompiledTemplate,
   _testOnlyClearSanitizerFactoryDoNotCallOrElse,
   setSanitizer,
+  html,
 } from '../index.js';
 import {
-  brokenByFakeWrapper,
   commentTest,
   compiledSuite,
-  fakeNodeMatcher,
-  html,
   rawTest,
   skipIfDomParts,
 } from './test-utils/dom-parts.js';
@@ -527,37 +525,31 @@ suite('lit-html', () => {
       assert.equal(container.querySelector('span:last-of-type'), renderedNode2);
     });
 
-    // Weirdly broken by the fake node insertion
-    brokenByFakeWrapper(
-      'renders/updates when specifying `renderBefore` node or not',
-      () => {
-        const template = html`<span></span>`;
-        const renderBefore = container.appendChild(
-          document.createElement('div')
-        );
-        assertRender(template, '<div></div><span></span>');
-        const containerRenderedNode = container.querySelector('span');
-        assertRender(template, '<span></span><div></div><span></span>', {
-          renderBefore,
-        });
-        const beforeRenderedNode = container.querySelector('span');
-        // Ensure re-render updates rather than re-rendering.
-        assertRender(template, '<span></span><div></div><span></span>');
-        assert.equal(
-          container.querySelector('span:last-of-type'),
-          containerRenderedNode
-        );
-        assert.equal(container.querySelector('span'), beforeRenderedNode);
-        assertRender(template, '<span></span><div></div><span></span>', {
-          renderBefore,
-        });
-        assert.equal(
-          container.querySelector('span:last-of-type'),
-          containerRenderedNode
-        );
-        assert.equal(container.querySelector('span'), beforeRenderedNode);
-      }
-    );
+    test('renders/updates when specifying `renderBefore` node or not', () => {
+      const template = html`<span></span>`;
+      const renderBefore = container.appendChild(document.createElement('div'));
+      assertRender(template, '<div></div><span></span>');
+      const containerRenderedNode = container.querySelector('span');
+      assertRender(template, '<span></span><div></div><span></span>', {
+        renderBefore,
+      });
+      const beforeRenderedNode = container.querySelector('span');
+      // Ensure re-render updates rather than re-rendering.
+      assertRender(template, '<span></span><div></div><span></span>');
+      assert.equal(
+        container.querySelector('span:last-of-type'),
+        containerRenderedNode
+      );
+      assert.equal(container.querySelector('span'), beforeRenderedNode);
+      assertRender(template, '<span></span><div></div><span></span>', {
+        renderBefore,
+      });
+      assert.equal(
+        container.querySelector('span:last-of-type'),
+        containerRenderedNode
+      );
+      assert.equal(container.querySelector('span'), beforeRenderedNode);
+    });
 
     test('back-to-back expressions', () => {
       const template = (a: unknown, b: unknown) =>
@@ -918,27 +910,18 @@ suite('lit-html', () => {
     });
 
     test('renders to an attribute expression after an attribute literal', () => {
-      render(html`<div a="b" foo="${'bar'}"></div>`, container);
-      // IE and Edge can switch attribute order!
-      assert.include(
-        ['<div a="b" foo="bar"></div>', '<div foo="bar" a="b"></div>'],
-        stripExpressionComments(container.innerHTML).replace(
-          fakeNodeMatcher,
-          ''
-        )
+      assertRender(
+        html`<div a="b" foo="${'bar'}"></div>`,
+        // IE and Edge can switch attribute order!
+        ['<div a="b" foo="bar"></div>', '<div foo="bar" a="b"></div>']
       );
     });
 
     test('renders to an attribute expression before an attribute literal', () => {
-      render(html`<div foo="${'bar'}" a="b"></div>`, container);
-      // IE and Edge can switch attribute order!
-      assert.include(
-        ['<div a="b" foo="bar"></div>', '<div foo="bar" a="b"></div>'],
-        stripExpressionComments(container.innerHTML).replace(
-          fakeNodeMatcher,
-          ''
-        )
-      );
+      assertRender(html`<div foo="${'bar'}" a="b"></div>`, [
+        '<div a="b" foo="bar"></div>',
+        '<div foo="bar" a="b"></div>',
+      ]);
     });
 
     // Regression test for exception in template parsing caused by attributes
@@ -957,15 +940,8 @@ suite('lit-html', () => {
     });
 
     test('renders multiple bound attributes', () => {
-      render(
+      assertRender(
         html`<div foo="${'Foo'}" bar="${'Bar'}" baz=${'Baz'}></div>`,
-        container
-      );
-      assert.oneOf(
-        stripExpressionComments(container.innerHTML).replace(
-          fakeNodeMatcher,
-          ''
-        ),
         [
           '<div foo="Foo" bar="Bar" baz="Baz"></div>',
           '<div foo="Foo" baz="Baz" bar="Bar"></div>',
@@ -975,21 +951,11 @@ suite('lit-html', () => {
     });
 
     test('renders multiple bound attributes without quotes', () => {
-      render(
-        html`<div foo=${'Foo'} bar=${'Bar'} baz=${'Baz'}></div>`,
-        container
-      );
-      assert.oneOf(
-        stripExpressionComments(container.innerHTML).replace(
-          fakeNodeMatcher,
-          ''
-        ),
-        [
-          '<div foo="Foo" bar="Bar" baz="Baz"></div>',
-          '<div foo="Foo" baz="Baz" bar="Bar"></div>',
-          '<div bar="Bar" foo="Foo" baz="Baz"></div>',
-        ]
-      );
+      assertRender(html`<div foo=${'Foo'} bar=${'Bar'} baz=${'Baz'}></div>`, [
+        '<div foo="Foo" bar="Bar" baz="Baz"></div>',
+        '<div foo="Foo" baz="Baz" bar="Bar"></div>',
+        '<div bar="Bar" foo="Foo" baz="Baz"></div>',
+      ]);
     });
 
     test('renders multi-expression attribute without quotes', () => {
@@ -1813,24 +1779,22 @@ suite('lit-html', () => {
         render(makeTemplate(checkPart()), container);
       });
 
-      brokenByFakeWrapper(
-        `part's parentNode is the logical DOM parent`,
-        async () => {
-          let resolve: () => void;
-          let reject: (e: unknown) => void;
-          // This Promise settles when then until() directive calls the directive
-          // in asyncCheckDiv.
-          const asyncCheckDivRendered = new Promise<void>((res, rej) => {
-            resolve = res;
-            reject = rej;
-          });
-          const asyncCheckDiv = Promise.resolve(
-            checkPart('div', (e?: unknown) =>
-              e === undefined ? resolve() : reject(e)
-            )
-          );
-          const makeTemplate = () =>
-            html`
+      test(`part's parentNode is the logical DOM parent`, async () => {
+        let resolve: () => void;
+        let reject: (e: unknown) => void;
+        // This Promise settles when then until() directive calls the directive
+        // in asyncCheckDiv.
+        const asyncCheckDivRendered = new Promise<void>((res, rej) => {
+          resolve = res;
+          reject = rej;
+        });
+        const asyncCheckDiv = Promise.resolve(
+          checkPart('div', (e?: unknown) =>
+            e === undefined ? resolve() : reject(e)
+          )
+        );
+        const makeTemplate = () =>
+          html`
             ${checkPart('container')}
             <div id="div">
               ${checkPart('div')}
@@ -1847,12 +1811,11 @@ suite('lit-html', () => {
             </div>
           `;
 
-          render(makeTemplate(), container);
-          await asyncCheckDivRendered;
-        }
-      );
+        render(makeTemplate(), container);
+        await asyncCheckDivRendered;
+      });
 
-      brokenByFakeWrapper(`when the parentNode is null`, async () => {
+      test(`when the parentNode is null`, async () => {
         const template = () => html`${checkPart('container')}`;
 
         // Render the template to instantiate the directive
@@ -1865,20 +1828,16 @@ suite('lit-html', () => {
         assert.equal(currentDirective.part!.parentNode, undefined);
       });
 
-      // this is broken by the <fake> wrapping node.
-      brokenByFakeWrapper(
-        `part's parentNode is correct when rendered into a document fragment`,
-        async () => {
-          debugger;
-          const fragment = document.createDocumentFragment();
-          (fragment as unknown as {id: string}).id = 'fragment';
-          const makeTemplate = () => html`${checkPart('fragment')}`;
+      test(`part's parentNode is correct when rendered into a document fragment`, async () => {
+        debugger;
+        const fragment = document.createDocumentFragment();
+        (fragment as unknown as {id: string}).id = 'fragment';
+        const makeTemplate = () => html`${checkPart('fragment')}`;
 
-          // Render twice so that `update` is called.
-          render(makeTemplate(), fragment);
-          render(makeTemplate(), fragment);
-        }
-      );
+        // Render twice so that `update` is called.
+        render(makeTemplate(), fragment);
+        render(makeTemplate(), fragment);
+      });
     });
 
     test('directives are stateful', () => {
@@ -1999,28 +1958,15 @@ suite('lit-html', () => {
       const template = (value: string) =>
         html`<div @click=${handle(value)}></div>`;
       assertRender(template('A'), '<div></div>');
-      const fakeInnerContainer = container.firstElementChild!;
-      (fakeInnerContainer.firstElementChild as HTMLDivElement).click();
-      assert.strictEqual(
-        (fakeInnerContainer.firstElementChild as any).__clicked,
-        'A:1'
-      );
-      (fakeInnerContainer.firstElementChild as HTMLDivElement).click();
-      assert.strictEqual(
-        (fakeInnerContainer.firstElementChild as any).__clicked,
-        'A:2'
-      );
+      (container.firstElementChild as HTMLDivElement).click();
+      assert.strictEqual((container.firstElementChild as any).__clicked, 'A:1');
+      (container.firstElementChild as HTMLDivElement).click();
+      assert.strictEqual((container.firstElementChild as any).__clicked, 'A:2');
       render(template('B'), container);
-      (fakeInnerContainer.firstElementChild as HTMLDivElement).click();
-      assert.strictEqual(
-        (fakeInnerContainer.firstElementChild as any).__clicked,
-        'B:3'
-      );
-      (fakeInnerContainer.firstElementChild as HTMLDivElement).click();
-      assert.strictEqual(
-        (fakeInnerContainer.firstElementChild as any).__clicked,
-        'B:4'
-      );
+      (container.firstElementChild as HTMLDivElement).click();
+      assert.strictEqual((container.firstElementChild as any).__clicked, 'B:3');
+      (container.firstElementChild as HTMLDivElement).click();
+      assert.strictEqual((container.firstElementChild as any).__clicked, 'B:4');
     });
 
     test('event listeners can see events fired in attribute directives', () => {
@@ -3177,7 +3123,7 @@ suite('lit-html', () => {
       warnings = [];
     };
 
-    brokenByFakeWrapper('warns on octal escape', () => {
+    test('warns on octal escape', () => {
       try {
         render(html`\2022`, container);
         assert.fail();

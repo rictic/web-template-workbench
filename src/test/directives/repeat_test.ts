@@ -5,10 +5,9 @@
  */
 
 import {repeat} from '../../directives/repeat.js';
-import {render} from '../../index.js';
+import {render, html} from '../../index.js';
 import {assert} from '@esm-bundle/chai';
 import {makeAsserts} from '../test-utils/assert-render.js';
-import {html} from '../test-utils/dom-parts.js';
 
 function assertItemIdentity(
   oldChildren: HTMLElement[],

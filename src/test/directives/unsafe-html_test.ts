@@ -5,10 +5,9 @@
  */
 
 import {unsafeHTML} from '../../directives/unsafe-html.js';
-import {render, nothing, noChange} from '../../index.js';
+import {render, html, nothing, noChange} from '../../index.js';
 import {assert} from '@esm-bundle/chai';
 import {makeAsserts} from '../test-utils/assert-render.js';
-import {html} from '../test-utils/dom-parts.js';
 
 suite('unsafeHTML directive', () => {
   let container: HTMLElement;

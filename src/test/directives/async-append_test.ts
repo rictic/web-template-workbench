@@ -5,12 +5,11 @@
  */
 
 import {asyncAppend} from '../../directives/async-append.js';
-import {render, nothing} from '../../index.js';
+import {render, html, nothing} from '../../index.js';
 import {TestAsyncIterable} from './test-async-iterable.js';
 import {assert} from '@esm-bundle/chai';
 import {memorySuite} from '../test-utils/memory.js';
 import {makeAsserts} from '../test-utils/assert-render.js';
-import {html} from '../test-utils/dom-parts.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -224,7 +223,7 @@ suite('asyncAppend', () => {
       // DOM leak will be orders of magnitude larger
       assert.isAtMost(
         performance.memory.usedJSHeapSize,
-        heap * 1.5,
+        heap * 2,
         'memory leak detected'
       );
     });

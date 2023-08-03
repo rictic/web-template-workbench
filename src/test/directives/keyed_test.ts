@@ -5,10 +5,9 @@
  */
 
 import {keyed} from '../../directives/keyed.js';
-import {render} from '../../index.js';
+import {render, html} from '../../index.js';
 import {assert} from '@esm-bundle/chai';
 import {makeAsserts} from '../test-utils/assert-render.js';
-import {html} from '../test-utils/dom-parts.js';
 
 suite('keyed directive', () => {
   let container: HTMLDivElement;

@@ -5,10 +5,9 @@
  */
 
 import {unsafeSVG} from '../../directives/unsafe-svg.js';
-import {render, nothing, noChange} from '../../index.js';
+import {render, nothing, html, noChange} from '../../index.js';
 import {assert} from '@esm-bundle/chai';
 import {makeAsserts} from '../test-utils/assert-render.js';
-import {html} from '../test-utils/dom-parts.js';
 
 suite('unsafeSVG', () => {
   let container: HTMLElement;

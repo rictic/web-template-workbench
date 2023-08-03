@@ -4,24 +4,14 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 import {render} from '../index.js';
-import {literal, unsafeStatic} from '../static.js';
-import {fakeNodeMatcher, staticHtml as html} from './test-utils/dom-parts.js';
+import {literal, html, unsafeStatic} from '../static.js';
+import {makeAsserts} from './test-utils/assert-render.js';
 import {assert} from '@esm-bundle/chai';
-import {stripExpressionComments} from '@lit-labs/testing';
 
 suite('static', () => {
   let container: HTMLElement;
 
-  const assertContent = (expected: string | string[], message?: string) => {
-    const cleanActual = stripExpressionComments(
-      container.innerHTML.replace(fakeNodeMatcher, '')
-    );
-    if (Array.isArray(expected)) {
-      assert.oneOf(cleanActual, expected, message);
-    } else {
-      assert.equal(cleanActual, expected, message);
-    }
-  };
+  const {assertContent} = makeAsserts(() => container);
 
   setup(() => {
     container = document.createElement('div');

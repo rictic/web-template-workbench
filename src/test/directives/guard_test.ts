@@ -4,12 +4,11 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import {nothing, render} from '../../index.js';
+import {nothing, html, render} from '../../index.js';
 import {guard} from '../../directives/guard.js';
 import {Directive, directive, PartInfo} from '../../directive.js';
 import {assert} from '@esm-bundle/chai';
 import {makeAsserts} from '../test-utils/assert-render.js';
-import {html} from '../test-utils/dom-parts.js';
 
 suite('guard', () => {
   let container: HTMLDivElement;

@@ -4,11 +4,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import {render, nothing} from '../../index.js';
+import {render, html, nothing} from '../../index.js';
 import {cache} from '../../directives/cache.js';
 import {assert} from '@esm-bundle/chai';
 import {directive, AsyncDirective} from '../../async-directive.js';
-import {html} from '../test-utils/dom-parts.js';
 import {makeAsserts} from '../test-utils/assert-render.js';
 
 suite('cache directive', () => {

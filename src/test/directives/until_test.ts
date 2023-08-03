@@ -6,10 +6,9 @@
 
 import {assert} from '@esm-bundle/chai';
 import {until} from '../..//directives/until.js';
-import {nothing, render} from '../../index.js';
+import {nothing, html, render} from '../../index.js';
 import {Deferred} from '../test-utils/deferred.js';
 import {memorySuite} from '../test-utils/memory.js';
-import {html} from '../test-utils/dom-parts.js';
 import {makeAsserts} from '../test-utils/assert-render.js';
 
 const laterTask = () => new Promise((resolve) => setTimeout(resolve));
