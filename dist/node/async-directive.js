@@ -1,0 +1,7 @@
+import{isSingleExpression as t}from"./directive-helpers.js";import{Directive as i,PartType as e}from"./directive.js";export{Directive,PartType,directive}from"./directive.js";export{AttributePart,BooleanAttributePart,ChildPart,ElementPart,EventPart,PropertyPart}from"./template.js";
+/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */const s=(t,i)=>{const e=t._$AN;if(void 0===e)return!1;for(const t of e)t._$AO?.(i,!1),s(t,i);return!0},r=t=>{let i,e;do{if(void 0===(i=t._$AM))break;e=i._$AN,e.delete(t),t=i}while(0===e?.size)},o=t=>{for(let i;i=t._$AM;t=i){let e=i._$AN;if(void 0===e)i._$AN=e=new Set;else if(e.has(t))break;e.add(t),c(i)}};function n(t){void 0!==this._$AN?(r(this),this._$AM=t,o(this)):this._$AM=t}function h(t,i=!1,e=0){const o=this._$AH,n=this._$AN;if(void 0!==n&&0!==n.size)if(i)if(Array.isArray(o))for(let t=e;t<o.length;t++)s(o[t],!1),r(o[t]);else null!=o&&(s(o,!1),r(o));else s(this,t)}const c=t=>{t.type==e.CHILD&&(t._$AP??=h,t._$AQ??=n)};class f extends i{constructor(){super(...arguments),this._$AN=void 0}_$AT(t,i,e){super._$AT(t,i,e),o(this),this.isConnected=t._$AU}_$AO(t,i=!0){t!==this.isConnected&&(this.isConnected=t,t?this.reconnected?.():this.disconnected?.()),i&&(s(this,t),r(this))}setValue(i){if(t(this._$CU))this._$CU._$AI(i,this);else{const t=[...this._$CU._$AH];t[this._$CF]=i,this._$CU._$AI(t,this,0)}}disconnected(){}reconnected(){}}export{f as AsyncDirective};
+//# sourceMappingURL=async-directive.js.map

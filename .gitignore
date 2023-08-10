@@ -1,5 +1,4 @@
 /.wireit
 /development/
 /node_modules/
-/dist/
 /tsconfig.tsbuildinfo
