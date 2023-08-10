@@ -13,12 +13,7 @@ import {
   rawTextElement,
   trustFromTemplateString,
 } from './get-template-html.js';
-import {
-  DEV_MODE,
-  ENABLE_EXTRA_SECURITY_HOOKS,
-  NODE_MODE,
-  useDomParts,
-} from './modes.js';
+import {DEV_MODE, ENABLE_EXTRA_SECURITY_HOOKS, NODE_MODE} from './modes.js';
 import {RenderOptions} from './render.js';
 import {ValueSanitizer, createSanitizer, sanitizerActive} from './sanitizer.js';
 import {templateFromLiterals} from './template-from-literals.js';
@@ -109,7 +104,11 @@ export const nothing = Symbol.for('lit-nothing');
  * or attr. This restriction simplifies the cache lookup, which is on the hot
  * path for rendering.
  */
-const templateCache = new WeakMap<TemplateStringsArray, Template>();
+const manualTemplateCache = new WeakMap<TemplateStringsArray, ManualTemplate>();
+const domPartsTemplateCache = new WeakMap<
+  TemplateStringsArray,
+  DomPartsTemplate
+>();
 
 const walker = d.createTreeWalker(
   d,
@@ -196,6 +195,7 @@ class ManualTemplate {
     {strings, ['_$litType$']: type}: TemplateResult,
     options?: RenderOptions
   ) {
+    console.log(`creating a manual template`);
     let node: Node | null;
     let nodeIndex = 0;
     let attrNameIndex = 0;
@@ -359,7 +359,7 @@ class ManualTemplateInstance implements Disconnectable {
 
   // This method is separate from the constructor because we need to return a
   // DocumentFragment and we don't want to hold onto it with an instance field.
-  _clone(options: RenderOptions | undefined) {
+  _clone(options: RenderOptions) {
     const {
       el: {content},
       parts: parts,
@@ -438,8 +438,9 @@ class DomPartsTemplate {
     {strings, ['_$litType$']: type}: TemplateResult,
     _options?: RenderOptions
   ) {
+    console.log(`creating a DOM Parts template`);
     // Create template element
-    this.el = templateFromLiterals(strings, type);
+    this.el = templateFromLiterals(strings, type, true);
     // Re-parent SVG nodes into template root
     if (type === SVG_RESULT) {
       const svgElement = this.el.content.firstChild!;
@@ -536,7 +537,7 @@ class DomPartsTemplateInstance implements Disconnectable {
 
   // This method is separate from the constructor because we need to return a
   // DocumentFragment and we don't want to hold onto it with an instance field.
-  _clone(options: RenderOptions | undefined) {
+  _clone(options: RenderOptions) {
     const {
       el: {content},
       parts: parts,
@@ -604,10 +605,6 @@ class DomPartsTemplateInstance implements Disconnectable {
   }
 }
 
-const Template = useDomParts ? DomPartsTemplate : ManualTemplate;
-export const TemplateInstance = useDomParts
-  ? DomPartsTemplateInstance
-  : ManualTemplateInstance;
 export type TemplateInstance =
   | DomPartsTemplateInstance
   | ManualTemplateInstance;
@@ -656,7 +653,7 @@ export type Part =
 
 export class ChildPart implements Disconnectable {
   readonly type = CHILD_PART;
-  readonly options: RenderOptions | undefined;
+  readonly options: RenderOptions;
   _$committedValue: unknown = nothing;
   /** @internal */
   __directive?: Directive;
@@ -702,7 +699,7 @@ export class ChildPart implements Disconnectable {
     startNode: ChildNode,
     endNode: ChildNode | null,
     parent: TemplateInstance | ChildPart | undefined,
-    options: RenderOptions | undefined
+    options: RenderOptions
   ) {
     this._$startNode = startNode;
     this._$endNode = endNode;
@@ -907,6 +904,9 @@ export class ChildPart implements Disconnectable {
     if ((this._$committedValue as TemplateInstance)?._$template === template) {
       (this._$committedValue as TemplateInstance)._update(values);
     } else {
+      const TemplateInstance = this.options?.useDomParts
+        ? DomPartsTemplateInstance
+        : ManualTemplateInstance;
       const instance = new TemplateInstance(template as Template, this);
       const fragment = instance._clone(this.options);
       instance._update(values);
@@ -918,8 +918,14 @@ export class ChildPart implements Disconnectable {
   // Overridden via `litHtmlPolyfillSupport` to provide platform support.
   /** @internal */
   _$getTemplate(result: TemplateResult) {
+    const templateCache = this.options.useDomParts
+      ? domPartsTemplateCache
+      : manualTemplateCache;
     let template = templateCache.get(result.strings);
     if (template === undefined) {
+      const Template = this.options.useDomParts
+        ? DomPartsTemplate
+        : ManualTemplate;
       templateCache.set(result.strings, (template = new Template(result)));
     }
     return template;

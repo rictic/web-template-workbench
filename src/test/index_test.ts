@@ -41,7 +41,7 @@ import {createRef, ref} from '../directives/ref.js';
 // For compiled template tests
 import {_$LH} from '../private-ssr-support.js';
 import {until} from '../directives/until.js';
-import {DEV_MODE} from '../modes.js';
+import {DEV_MODE, domPartsSupported} from '../modes.js';
 import {makeAsserts} from './test-utils/assert-render.js';
 const {AttributePart} = _$LH;
 
@@ -475,11 +475,13 @@ suite('lit-html', () => {
       const template = html`<span></span>`;
       assertRender(template, '<span></span><div></div>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       // Ensure re-render updates rather than re-rendering.
       const containerChildNodes = Array.from(container.childNodes);
       assertRender(template, '<span></span><div></div>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       assert.sameMembers(Array.from(container.childNodes), containerChildNodes);
     });
@@ -494,6 +496,7 @@ suite('lit-html', () => {
       const template = html`<span></span>`;
       assertRender(template, '<span></span><div></div><div></div>', {
         renderBefore: renderBefore1,
+        useDomParts: domPartsSupported,
       });
       const renderedNode1 = container.querySelector('span');
       assertRender(
@@ -501,6 +504,7 @@ suite('lit-html', () => {
         '<span></span><div></div><span></span><div></div>',
         {
           renderBefore: renderBefore2,
+          useDomParts: domPartsSupported,
         }
       );
       const renderedNode2 = container.querySelector('span:last-of-type');
@@ -510,6 +514,7 @@ suite('lit-html', () => {
         '<span></span><div></div><span></span><div></div>',
         {
           renderBefore: renderBefore1,
+          useDomParts: domPartsSupported,
         }
       );
       assert.equal(container.querySelector('span'), renderedNode1);
@@ -519,6 +524,7 @@ suite('lit-html', () => {
         '<span></span><div></div><span></span><div></div>',
         {
           renderBefore: renderBefore2,
+          useDomParts: domPartsSupported,
         }
       );
       assert.equal(container.querySelector('span'), renderedNode1);
@@ -532,6 +538,7 @@ suite('lit-html', () => {
       const containerRenderedNode = container.querySelector('span');
       assertRender(template, '<span></span><div></div><span></span>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       const beforeRenderedNode = container.querySelector('span');
       // Ensure re-render updates rather than re-rendering.
@@ -543,6 +550,7 @@ suite('lit-html', () => {
       assert.equal(container.querySelector('span'), beforeRenderedNode);
       assertRender(template, '<span></span><div></div><span></span>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       assert.equal(
         container.querySelector('span:last-of-type'),
@@ -1212,7 +1220,10 @@ suite('lit-html', () => {
         thisValue = this;
       };
       const host = {} as EventTarget;
-      render(html`<div @click=${listener}></div>`, container, {host});
+      render(html`<div @click=${listener}></div>`, container, {
+        host,
+        useDomParts: domPartsSupported,
+      });
       const div = container.querySelector('div')!;
       div.click();
       if (event === undefined) {
@@ -1240,6 +1251,7 @@ suite('lit-html', () => {
       const host = {} as EventTarget;
       render(html`<div @click=${listener}></div>`, container, {
         host,
+        useDomParts: domPartsSupported,
       });
       const div = container.querySelector('div')!;
       div.click();
@@ -2219,7 +2231,7 @@ suite('lit-html', () => {
       render(
         html`<div attr=${hostDirective('attr')}>${hostDirective('node')}</div>`,
         container,
-        {host: hostEl}
+        {host: hostEl, useDomParts: domPartsSupported}
       );
       assertContent('<div attr="host:attr">host:node</div>');
     });

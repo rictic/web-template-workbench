@@ -24,7 +24,6 @@ import type {
   BooleanAttributePart,
   EventPart,
   ElementPart,
-  TemplateInstance,
 } from './index.js';
 
 /**
@@ -86,7 +85,7 @@ export const _$LH = {
   BooleanAttributePart: p._BooleanAttributePart as typeof BooleanAttributePart,
   EventPart: p._EventPart as typeof EventPart,
   ElementPart: p._ElementPart as typeof ElementPart,
-  TemplateInstance: p._TemplateInstance as typeof TemplateInstance,
+  // TemplateInstance: p._TemplateInstance as typeof TemplateInstance,
   isIterable: p._isIterable,
   ChildPart: p._ChildPart as typeof ChildPart,
 };

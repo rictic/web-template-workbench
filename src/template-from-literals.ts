@@ -5,7 +5,6 @@
  */
 
 import {getTemplateHtml} from './get-template-html.js';
-import {useDomParts} from './modes.js';
 import {HTML_RESULT, ResultType} from './ttl.js';
 
 // Typings for the DOM Parts proposed standard as described by
@@ -86,7 +85,8 @@ declare global {
  */
 export function templateFromLiterals(
   strings: TemplateStringsArray,
-  type: ResultType = HTML_RESULT
+  type: ResultType = HTML_RESULT,
+  useDomParts: boolean,
 ): HTMLTemplateElement {
   const [html, attrNames] = getTemplateHtml(strings, type);
   let attrNameIdx = 0;

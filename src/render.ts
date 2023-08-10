@@ -5,7 +5,7 @@
  */
 
 import {ChildPart, RootPart} from './template.js';
-import {DEV_MODE} from './modes.js';
+import {DEV_MODE, domPartsSupported} from './modes.js';
 
 /**
  * Object specifying options for controlling lit-html rendering. Note that
@@ -40,6 +40,12 @@ export interface RenderOptions {
    * render to change the connected state of the part.
    */
   isConnected?: boolean;
+
+  /**
+   * Whether to use DOM parts for rendering. Defaults to `true` if DOM parts are
+   * supported in the current browser, otherwise `false`.
+   */
+  useDomParts: boolean;
 }
 
 /**
@@ -91,7 +97,7 @@ export const render = (
       container.insertBefore(document.createComment(''), endNode),
       endNode,
       undefined,
-      options ?? {}
+      options ?? {useDomParts: domPartsSupported}
     );
   }
   part._$setValue(value);

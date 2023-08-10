@@ -1,5 +1,4 @@
 import {ExclusiveTestFunction, TestFunction} from 'mocha';
-import {useDomParts} from '../modes.js';
 import {templateFromLiterals} from '../template-from-literals.js';
 import {assert} from '@esm-bundle/chai';
 
@@ -64,14 +63,11 @@ for (const {name, input, expected, only, skip} of testCases) {
     testFn = test.skip;
   }
   testFn(name, () => {
-    if (useDomParts) {
-      // in a rather silly situation that needs to be cleaned up, these tests
-      // are only useful when DOM parts _aren't_ implemented in the browser,
-      // because when they are we don't want to insert processing instructions,
-      // we just create the parts imperatively.
-      return;
-    }
-    const templ = templateFromLiterals(input);
+    // in a rather silly situation that needs to be cleaned up, these tests
+    // are only useful when running _without_ DOM parts,
+    // because when they are we don't want to insert processing instructions,
+    // we just create the parts imperatively.
+    const templ = templateFromLiterals(input, undefined, false);
     assert.deepEqual(
       templ.innerHTML,
       expected,

@@ -6,6 +6,7 @@
 import {html, render} from '../../index.js';
 import {ref, createRef, RefOrCallback} from '../../directives/ref.js';
 import {assert} from '@esm-bundle/chai';
+import {domPartsSupported} from '../../modes.js';
 
 suite('ref', () => {
   let container: HTMLDivElement;
@@ -153,7 +154,7 @@ suite('ref', () => {
             ? html`<div ${ref(this.elCallback)}></div>`
             : html`<span ${ref(this.elCallback)}></span>`,
           this.root,
-          {host: this}
+          {host: this, useDomParts: domPartsSupported}
         );
       }
     }

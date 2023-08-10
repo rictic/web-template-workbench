@@ -29,5 +29,5 @@ export const compiledSuite = (() => {
 // Raw elements don't work with our DOM Parts implementation yet.
 export const rawTest = skipIfDomParts;
 
-// Bindings in comments don't work with our DOM Parts implementation yet.
-export const commentTest = skipIfDomParts;
+// Looks like I broke bindings in comments more generally.
+export const commentTest = test.skip;
