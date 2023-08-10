@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<head>
+  <style>
+    body {
+      font-family: system-ui;
+      font-size: 10px;
+    }
+    section {
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      --s: 4px;
+      gap: var(--s);
+      padding: var(--s);
+      border-radius: var(--s);
+      border: 1px dashed gray;
+    }
+
+    :not(:has(section section)) {
+      flex-direction: row;
+    }
+
+    .controls {
+      display: inline-flex;
+      min-width: 300px;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <script type="module" src="./deep.js"></script>
+  <div class="controls">
+    <button id="Manual">Manual Parts</button>
+    <button id="Parts">Native Parts</button>
+  </div>
+  <div id="testContainer"><div>
+  <script type="module">
+    import { html, render, nothing } from "../dist/index.js";
+
+    const createContent = (width = 6, depth = 6, at = 0) => {
+      at++;
+      if (at >= depth) {
+        return nothing;
+      }
+      const results = [];
+      for (let i = 0; i < width; i++) {
+        results.push(
+          html`<section>${at}.${i}${createContent(width, depth, at)}</section>`
+        );
+      }
+      return results;
+    };
+    const container = window.testContainer;
+
+    // warm up caches, as template creation isn't part of this test, because
+    // our part creation code is not at all optimized.
+    // after running this, we'll have <template> elements for both the manual
+    // and the DOM Parts versions.
+    const content = createContent();
+    render(content, document.createElement('div'), {useDomParts: false});
+    render(content, document.createElement('div'), {useDomParts: true});
+
+    const test = async (options) => {
+      render('', container);
+      await new Promise(r => setTimeout(r, 0));
+      const start = performance.now();
+      render(content, container, options)
+      return {time: performance.now() - start};
+    }
+
+    const listen = (node, cb) => {
+      node.addEventListener('click', async () => {
+        const {time, frag} = await cb();
+        node.textContent = `${node.id}: ${time.toFixed(2)}ms`;
+      });
+    }
+
+    listen(Manual, () => test({useDomParts: false}));
+    listen(Parts, () => test({useDomParts: true}));
+
+  </script>
+
+</body>

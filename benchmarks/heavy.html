@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<!--
+Benchmark generated via the following invocation:
+node generator/build/index.js -r lit-html,lit-html@tot=generator/scripts/package-versions-tot.json,lit-html@release=generator/scripts/package-versions-release.json -n template-heavy -o lit-html/template-heavy -u 10 -q -m render,update -g
+
+Parameters:
+  renderers: lit-html
+  depth: 5
+  width: 4
+  attrPerNode: 4
+  dynAttrPct: 0.5
+  valPerDynAttr: 2
+  dynNodePct: 0.5
+  updateCount: 10
+  updateNodePct: 1
+  updateAttrPct: 1
+  uniqueTemplates: true
+  measure: render,update
+-->
+<html>
+  <head> </head>
+  <body>
+    <script type="module">
+      import { update } from "./heavy.js";
+      import { html, render, nothing } from "../dist/index.js";
+
+      const domParts = {
+        name: "DOM Parts",
+        options: { useDomParts: true },
+        times: [],
+      };
+      const manual = {
+        name: "Manual",
+        options: { useDomParts: false },
+        times: [],
+      };
+      // ensure that <template>s are created for both versions first,
+      // because our DOM Parts template creation code is not optimized yet.
+      update(document.createElement("div"), domParts.options);
+      update(document.createElement("div"), manual.options);
+      function drawConfig(config) {
+        let timesReport = nothing;
+        if (config.times.length > 0) {
+          const average =
+            config.times.reduce((a, b) => a + b, 0) / config.times.length;
+          const stdDev = Math.sqrt(
+            config.times.reduce((a, b) => a + (b - average) ** 2, 0) /
+              config.times.length
+          );
+          timesReport = html`
+            <span>
+              Average time: ${average.toFixed(2)}ms &plusmn;
+              ${stdDev.toFixed(2)}ms
+            </span>
+            <div style="display:none">
+              ${config.times.map(
+                (time) => html`<span>${time.toFixed(2)}ms</span>`
+              )}
+            </div>
+          `;
+        }
+        function testAndUpdate() {
+          test(config);
+          main();
+        }
+        return html`
+          <div>
+            <button @click=${testAndUpdate}>${config.name}</button>
+            ${timesReport}
+          </div>
+        `;
+      }
+      let numRuns = 100;
+      let running = false;
+      function main() {
+        render(
+          html`
+            <div>
+              <button @click=${() => runMany(numRuns)}>
+                Run ${numRuns} times
+              </button>
+              ${running ? html`Running...` : nothing}
+              <div>
+                <label
+                  >Runs:
+                  <input
+                    type="number"
+                    .value=${numRuns}
+                    @input=${(e) => {
+                      numRuns = e.target.value;
+                      main();
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+            ${drawConfig(domParts)} ${drawConfig(manual)}
+          `,
+          document.body
+        );
+      }
+      async function waitForPaint() {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      async function runMany(count) {
+        running = true;
+        main();
+        await waitForPaint();
+        for (let i = 0; i < count; i++) {
+          test(domParts);
+          test(manual);
+        }
+        running = false;
+        main();
+      }
+      main();
+      function test(config) {
+        const startTime = performance.now();
+        update(document.createElement("div"), config.options);
+        config.times.push(performance.now() - startTime);
+      }
+    </script>
+  </body>
+</html>
