@@ -6,5 +6,4 @@
 
 export * from './ttl.js';
 export * from './render.js';
-export * from './sanitizer.js';
 export * from './template.js';

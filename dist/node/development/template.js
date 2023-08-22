@@ -1,5 +1,4 @@
 import { getTemplateHtml, marker, boundAttributeSuffix, rawTextElement, markerMatch } from './get-template-html.js';
-import { sanitizerActive, createSanitizer } from './sanitizer.js';
 import { templateFromLiterals } from './template-from-literals.js';
 import { SVG_RESULT } from './ttl.js';
 
@@ -8,15 +7,7 @@ import { SVG_RESULT } from './ttl.js';
  * Copyright 2023 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-// Allows minifiers to rename references to globalThis
-const global = globalThis;
-const d = global.document === undefined
-    ? {
-        createTreeWalker() {
-            return {};
-        },
-    }
-    : document;
+const d = document;
 // Creates a dynamic marker. We never have to search for these in the DOM.
 const createMarker = () => d.createComment('');
 const isPrimitive = (value) => value === null || (typeof value != 'object' && typeof value != 'function');
@@ -245,24 +236,6 @@ class ManualTemplateInstance {
         walker.currentNode = d;
         return fragment;
     }
-    _update(values) {
-        let i = 0;
-        for (const part of this._$parts) {
-            if (part !== undefined) {
-                if (part.strings !== undefined) {
-                    part._$setValue(values, i);
-                    // The number of values the part consumes is part.strings.length - 1
-                    // since values are in between template spans. We increment i by 1
-                    // later in the loop, so increment it by part.strings.length - 2 here
-                    i += part.strings.length - 2;
-                }
-                else {
-                    part._$setValue(values[i]);
-                }
-            }
-            i++;
-        }
-    }
 }
 class DomPartsTemplate {
     constructor(
@@ -368,24 +341,6 @@ class DomPartsTemplateInstance {
         }
         return fragment;
     }
-    _update(values) {
-        let i = 0;
-        for (const part of this._$parts) {
-            if (part !== undefined) {
-                if (part.strings !== undefined) {
-                    part._$setValue(values, i);
-                    // The number of values the part consumes is part.strings.length - 1
-                    // since values are in between template spans. We increment i by 1
-                    // later in the loop, so increment it by part.strings.length - 2 here
-                    i += part.strings.length - 2;
-                }
-                else {
-                    part._$setValue(values[i]);
-                }
-            }
-            i++;
-        }
-    }
 }
 class ChildPart {
     // See comment in Disconnectable interface for why this is a getter
@@ -410,10 +365,6 @@ class ChildPart {
         // no _$parent); the value on a non-root-part is "don't care", but checking
         // for parent would be more code
         this.__isConnected = options?.isConnected ?? true;
-        {
-            // Explicitly initialize for consistent class shape.
-            this._textSanitizer = undefined;
-        }
     }
     /**
      * The parent node into which the part renders its content.
@@ -504,31 +455,6 @@ class ChildPart {
     _commitNode(value) {
         if (this._$committedValue !== value) {
             this._$clear();
-            if (sanitizerActive()) {
-                const parentNodeName = this._$startNode.parentNode?.nodeName;
-                if (parentNodeName === 'STYLE' || parentNodeName === 'SCRIPT') {
-                    let message = 'Forbidden';
-                    {
-                        if (parentNodeName === 'STYLE') {
-                            message =
-                                `Lit does not support binding inside style nodes. ` +
-                                    `This is a security risk, as style injection attacks can ` +
-                                    `exfiltrate data and spoof UIs. ` +
-                                    `Consider instead using css\`...\` literals ` +
-                                    `to compose styles, and make do dynamic styling with ` +
-                                    `css custom properties, ::parts, <slot>s, ` +
-                                    `and by mutating the DOM rather than stylesheets.`;
-                        }
-                        else {
-                            message =
-                                `Lit does not support binding inside script nodes. ` +
-                                    `This is a security risk, as it could allow arbitrary ` +
-                                    `code execution.`;
-                        }
-                    }
-                    throw new Error(message);
-                }
-            }
             this._$committedValue = this._insert(value);
         }
     }
@@ -539,51 +465,22 @@ class ChildPart {
         if (this._$committedValue !== nothing &&
             isPrimitive(this._$committedValue)) {
             const node = this._$startNode.nextSibling;
-            {
-                if (this._textSanitizer === undefined) {
-                    this._textSanitizer = createSanitizer(node, 'data', 'property');
-                }
-                value = this._textSanitizer(value);
-            }
             node.data = value;
         }
         else {
-            {
-                const textNode = d.createTextNode('');
-                this._commitNode(textNode);
-                // When setting text content, for security purposes it matters a lot
-                // what the parent is. For example, <style> and <script> need to be
-                // handled with care, while <span> does not. So first we need to put a
-                // text node into the document, then we can sanitize its content.
-                if (this._textSanitizer === undefined) {
-                    this._textSanitizer = createSanitizer(textNode, 'data', 'property');
-                }
-                value = this._textSanitizer(value);
-                textNode.data = value;
-            }
+            this._commitNode(d.createTextNode(value));
         }
         this._$committedValue = value;
     }
     _commitTemplateResult(result) {
-        // This property needs to remain unminified.
-        const { values } = result;
-        // If $litType$ is a number, result is a plain TemplateResult and we get
-        // the template from the template cache. If not, result is a
-        // CompiledTemplateResult and _$litType$ is a CompiledTemplate and we need
-        // to create the <template> element the first time we see it.
         const template = this._$getTemplate(result);
-        if (this._$committedValue?._$template === template) {
-            this._$committedValue._update(values);
-        }
+        if (this._$committedValue?._$template === template) ;
         else {
             const TemplateInstance = this.options?.useDomParts
                 ? DomPartsTemplateInstance
                 : ManualTemplateInstance;
             const instance = new TemplateInstance(template, this);
-            const fragment = instance._clone(this.options);
-            instance._update(values);
-            this._commitNode(fragment);
-            this._$committedValue = instance;
+            instance._clone(this.options);
         }
     }
     // Overridden via `litHtmlPolyfillSupport` to provide platform support.
@@ -704,9 +601,6 @@ class AttributePart {
         else {
             this._$committedValue = nothing;
         }
-        {
-            this._sanitizer = undefined;
-        }
     }
     /**
      * Sets the value of this part by resolving the value from possibly multiple
@@ -776,12 +670,6 @@ class AttributePart {
             this.element.removeAttribute(this.name);
         }
         else {
-            {
-                if (this._sanitizer === undefined) {
-                    this._sanitizer = createSanitizer(this.element, this.name, 'attribute');
-                }
-                value = this._sanitizer(value ?? '');
-            }
             this.element.setAttribute(this.name, (value ?? ''));
         }
     }

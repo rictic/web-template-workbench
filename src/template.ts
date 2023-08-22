@@ -11,23 +11,12 @@ import {
   markerMatch,
   rawTextElement,
 } from './get-template-html.js';
-import {DEV_MODE, ENABLE_EXTRA_SECURITY_HOOKS, NODE_MODE} from './modes.js';
+import {DEV_MODE} from './modes.js';
 import {RenderOptions} from './render.js';
-import {ValueSanitizer, createSanitizer, sanitizerActive} from './sanitizer.js';
 import {templateFromLiterals} from './template-from-literals.js';
 import {SVG_RESULT, TemplateResult} from './ttl.js';
 
-// Allows minifiers to rename references to globalThis
-const global = globalThis;
-
-const d =
-  NODE_MODE && global.document === undefined
-    ? ({
-        createTreeWalker() {
-          return {};
-        },
-      } as unknown as Document)
-    : document;
+const d = document;
 
 // Creates a dynamic marker. We never have to search for these in the DOM.
 const createMarker = () => d.createComment('');
@@ -325,24 +314,6 @@ class ManualTemplateInstance implements Disconnectable {
     walker.currentNode = d;
     return fragment;
   }
-
-  _update(values: Array<unknown>) {
-    let i = 0;
-    for (const part of this._$parts) {
-      if (part !== undefined) {
-        if ((part as AttributePart).strings !== undefined) {
-          (part as AttributePart)._$setValue(values, i);
-          // The number of values the part consumes is part.strings.length - 1
-          // since values are in between template spans. We increment i by 1
-          // later in the loop, so increment it by part.strings.length - 2 here
-          i += (part as AttributePart).strings!.length - 2;
-        } else {
-          part._$setValue(values[i]);
-        }
-      }
-      i++;
-    }
-  }
 }
 
 class DomPartsTemplate {
@@ -483,24 +454,6 @@ class DomPartsTemplateInstance implements Disconnectable {
     }
     return fragment;
   }
-
-  _update(values: Array<unknown>) {
-    let i = 0;
-    for (const part of this._$parts) {
-      if (part !== undefined) {
-        if ((part as AttributePart).strings !== undefined) {
-          (part as AttributePart)._$setValue(values, i);
-          // The number of values the part consumes is part.strings.length - 1
-          // since values are in between template spans. We increment i by 1
-          // later in the loop, so increment it by part.strings.length - 2 here
-          i += (part as AttributePart).strings!.length - 2;
-        } else {
-          part._$setValue(values[i]);
-        }
-      }
-      i++;
-    }
-  }
 }
 
 export type TemplateInstance =
@@ -541,9 +494,7 @@ type TemplatePart =
   | ElementTemplatePart
   | CommentTemplatePart;
 
-export type Part =
-  | ChildPart
-  | AttributePart;
+export type Part = ChildPart | AttributePart;
 
 export class ChildPart implements Disconnectable {
   readonly type = CHILD_PART;
@@ -553,7 +504,6 @@ export class ChildPart implements Disconnectable {
   _$startNode: ChildNode;
   /** @internal */
   _$endNode: ChildNode | null;
-  private _textSanitizer: ValueSanitizer | undefined;
   /** @internal */
   _$parent: Disconnectable | undefined;
   /**
@@ -601,10 +551,6 @@ export class ChildPart implements Disconnectable {
     // no _$parent); the value on a non-root-part is "don't care", but checking
     // for parent would be more code
     this.__isConnected = options?.isConnected ?? true;
-    if (ENABLE_EXTRA_SECURITY_HOOKS) {
-      // Explicitly initialize for consistent class shape.
-      this._textSanitizer = undefined;
-    }
   }
 
   /**
@@ -709,30 +655,6 @@ export class ChildPart implements Disconnectable {
   private _commitNode(value: Node): void {
     if (this._$committedValue !== value) {
       this._$clear();
-      if (ENABLE_EXTRA_SECURITY_HOOKS && sanitizerActive()) {
-        const parentNodeName = this._$startNode.parentNode?.nodeName;
-        if (parentNodeName === 'STYLE' || parentNodeName === 'SCRIPT') {
-          let message = 'Forbidden';
-          if (DEV_MODE) {
-            if (parentNodeName === 'STYLE') {
-              message =
-                `Lit does not support binding inside style nodes. ` +
-                `This is a security risk, as style injection attacks can ` +
-                `exfiltrate data and spoof UIs. ` +
-                `Consider instead using css\`...\` literals ` +
-                `to compose styles, and make do dynamic styling with ` +
-                `css custom properties, ::parts, <slot>s, ` +
-                `and by mutating the DOM rather than stylesheets.`;
-            } else {
-              message =
-                `Lit does not support binding inside script nodes. ` +
-                `This is a security risk, as it could allow arbitrary ` +
-                `code execution.`;
-            }
-          }
-          throw new Error(message);
-        }
-      }
       this._$committedValue = this._insert(value);
     }
   }
@@ -746,53 +668,23 @@ export class ChildPart implements Disconnectable {
       isPrimitive(this._$committedValue)
     ) {
       const node = this._$startNode.nextSibling as Text;
-      if (ENABLE_EXTRA_SECURITY_HOOKS) {
-        if (this._textSanitizer === undefined) {
-          this._textSanitizer = createSanitizer(node, 'data', 'property');
-        }
-        value = this._textSanitizer(value);
-      }
       (node as Text).data = value as string;
     } else {
-      if (ENABLE_EXTRA_SECURITY_HOOKS) {
-        const textNode = d.createTextNode('');
-        this._commitNode(textNode);
-        // When setting text content, for security purposes it matters a lot
-        // what the parent is. For example, <style> and <script> need to be
-        // handled with care, while <span> does not. So first we need to put a
-        // text node into the document, then we can sanitize its content.
-        if (this._textSanitizer === undefined) {
-          this._textSanitizer = createSanitizer(textNode, 'data', 'property');
-        }
-        value = this._textSanitizer(value);
-        textNode.data = value as string;
-      } else {
-        this._commitNode(d.createTextNode(value as string));
-      }
+      this._commitNode(d.createTextNode(value as string));
     }
     this._$committedValue = value;
   }
 
   private _commitTemplateResult(result: TemplateResult): void {
-    // This property needs to remain unminified.
-    const {values} = result;
-    // If $litType$ is a number, result is a plain TemplateResult and we get
-    // the template from the template cache. If not, result is a
-    // CompiledTemplateResult and _$litType$ is a CompiledTemplate and we need
-    // to create the <template> element the first time we see it.
     const template: Template = this._$getTemplate(result);
 
     if ((this._$committedValue as TemplateInstance)?._$template === template) {
-      (this._$committedValue as TemplateInstance)._update(values);
     } else {
       const TemplateInstance = this.options?.useDomParts
         ? DomPartsTemplateInstance
         : ManualTemplateInstance;
       const instance = new TemplateInstance(template as Template, this);
-      const fragment = instance._clone(this.options);
-      instance._update(values);
-      this._commitNode(fragment);
-      this._$committedValue = instance;
+      instance._clone(this.options);
     }
   }
 
@@ -952,8 +844,6 @@ export class AttributePart implements Disconnectable {
   /** @internal */
   _$disconnectableChildren?: Set<Disconnectable> = undefined;
 
-  protected _sanitizer: ValueSanitizer | undefined;
-
   get tagName() {
     return this.element.tagName;
   }
@@ -979,9 +869,6 @@ export class AttributePart implements Disconnectable {
       this.strings = strings;
     } else {
       this._$committedValue = nothing;
-    }
-    if (ENABLE_EXTRA_SECURITY_HOOKS) {
-      this._sanitizer = undefined;
     }
   }
 
@@ -1059,16 +946,6 @@ export class AttributePart implements Disconnectable {
     if (value === nothing) {
       this.element.removeAttribute(this.name);
     } else {
-      if (ENABLE_EXTRA_SECURITY_HOOKS) {
-        if (this._sanitizer === undefined) {
-          this._sanitizer = createSanitizer(
-            this.element,
-            this.name,
-            'attribute'
-          );
-        }
-        value = this._sanitizer(value ?? '');
-      }
       this.element.setAttribute(this.name, (value ?? '') as string);
     }
   }
