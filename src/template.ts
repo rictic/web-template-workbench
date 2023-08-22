@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import type {Directive, DirectiveResult, PartInfo} from './directive.js';
 import {
   boundAttributeSuffix,
   getTemplateHtml,
@@ -98,15 +97,6 @@ const walker = d.createTreeWalker(
   129 /* NodeFilter.SHOW_{ELEMENT|COMMENT} */
 );
 
-// Type for classes that have a `_directive` or `_directives[]` field, used by
-// `resolveDirective`
-export interface DirectiveParent {
-  _$parent?: DirectiveParent;
-  _$isConnected: boolean;
-  __directive?: Directive;
-  __directives?: Array<Directive | undefined>;
-}
-
 export interface Disconnectable {
   _$parent?: Disconnectable;
   _$disconnectableChildren?: Set<Disconnectable>;
@@ -118,52 +108,6 @@ export interface Disconnectable {
   // directives) their connection state each time it changes, which would be
   // costly for trees that have no AsyncDirectives.
   _$isConnected: boolean;
-}
-
-export function resolveDirective(
-  part: ChildPart | AttributePart | ElementPart,
-  value: unknown,
-  parent: DirectiveParent = part,
-  attributeIndex?: number
-): unknown {
-  // Bail early if the value is explicitly noChange. Note, this means any
-  // nested directive is still attached and is not run.
-  if (value === noChange) {
-    return value;
-  }
-  let currentDirective =
-    attributeIndex !== undefined
-      ? (parent as AttributePart).__directives?.[attributeIndex]
-      : (parent as ChildPart | ElementPart | Directive).__directive;
-  const nextDirectiveConstructor = isPrimitive(value)
-    ? undefined
-    : // This property needs to remain unminified.
-      (value as DirectiveResult)['_$litDirective$'];
-  if (currentDirective?.constructor !== nextDirectiveConstructor) {
-    // This property needs to remain unminified.
-    currentDirective?.['_$notifyDirectiveConnectionChanged']?.(false);
-    if (nextDirectiveConstructor === undefined) {
-      currentDirective = undefined;
-    } else {
-      currentDirective = new nextDirectiveConstructor(part as PartInfo);
-      currentDirective._$initialize(part, parent, attributeIndex);
-    }
-    if (attributeIndex !== undefined) {
-      ((parent as AttributePart).__directives ??= [])[attributeIndex] =
-        currentDirective;
-    } else {
-      (parent as ChildPart | Directive).__directive = currentDirective;
-    }
-  }
-  if (currentDirective !== undefined) {
-    value = resolveDirective(
-      part,
-      currentDirective._$resolve(part, (value as DirectiveResult).values),
-      currentDirective,
-      attributeIndex
-    );
-  }
-  return value;
 }
 
 export type Template = ManualTemplate | DomPartsTemplate;
@@ -233,14 +177,7 @@ class ManualTemplate {
                 index: nodeIndex,
                 name: m[2],
                 strings: statics,
-                ctor:
-                  m[1] === '.'
-                    ? PropertyPart
-                    : m[1] === '?'
-                    ? BooleanAttributePart
-                    : m[1] === '@'
-                    ? EventPart
-                    : AttributePart,
+                ctor: AttributePart,
               });
               (node as Element).removeAttribute(name);
             } else if (name.startsWith(marker)) {
@@ -373,8 +310,6 @@ class ManualTemplateInstance implements Disconnectable {
             this,
             options
           );
-        } else if (templatePart.type === ELEMENT_PART) {
-          part = new ElementPart(node as HTMLElement, this, options);
         }
         this._$parts.push(part);
         templatePart = parts[++partIndex];
@@ -396,7 +331,7 @@ class ManualTemplateInstance implements Disconnectable {
     for (const part of this._$parts) {
       if (part !== undefined) {
         if ((part as AttributePart).strings !== undefined) {
-          (part as AttributePart)._$setValue(values, part as AttributePart, i);
+          (part as AttributePart)._$setValue(values, i);
           // The number of values the part consumes is part.strings.length - 1
           // since values are in between template spans. We increment i by 1
           // later in the loop, so increment it by part.strings.length - 2 here
@@ -455,22 +390,11 @@ class DomPartsTemplate {
               this.parts.push(attributePart);
             }
             let name = part.metadata[++i];
-            let ctor: typeof AttributePart = AttributePart;
-            if (name.startsWith('.')) {
-              ctor = PropertyPart;
-              name = name.slice(1);
-            } else if (name.startsWith('@')) {
-              ctor = EventPart;
-              name = name.slice(1);
-            } else if (name.startsWith('?')) {
-              ctor = BooleanAttributePart;
-              name = name.slice(1);
-            }
             attributePart = {
               type: ATTRIBUTE_PART,
               index,
               name,
-              ctor,
+              ctor: AttributePart,
               strings: [],
             };
           } else if (code[0] === '"') {
@@ -543,15 +467,6 @@ class DomPartsTemplateInstance implements Disconnectable {
             )
           );
           break;
-        case ELEMENT_PART:
-          this._$parts.push(
-            new ElementPart(
-              (domPart as NodePart).node as Element,
-              this,
-              options
-            )
-          );
-          break;
         case ATTRIBUTE_PART: {
           this._$parts.push(
             new (part as AttributeTemplatePart).ctor(
@@ -574,7 +489,7 @@ class DomPartsTemplateInstance implements Disconnectable {
     for (const part of this._$parts) {
       if (part !== undefined) {
         if ((part as AttributePart).strings !== undefined) {
-          (part as AttributePart)._$setValue(values, part as AttributePart, i);
+          (part as AttributePart)._$setValue(values, i);
           // The number of values the part consumes is part.strings.length - 1
           // since values are in between template spans. We increment i by 1
           // later in the loop, so increment it by part.strings.length - 2 here
@@ -628,18 +543,12 @@ type TemplatePart =
 
 export type Part =
   | ChildPart
-  | AttributePart
-  | PropertyPart
-  | BooleanAttributePart
-  | ElementPart
-  | EventPart;
+  | AttributePart;
 
 export class ChildPart implements Disconnectable {
   readonly type = CHILD_PART;
   readonly options: RenderOptions;
   _$committedValue: unknown = nothing;
-  /** @internal */
-  __directive?: Directive;
   /** @internal */
   _$startNode: ChildNode;
   /** @internal */
@@ -747,13 +656,12 @@ export class ChildPart implements Disconnectable {
     return this._$endNode;
   }
 
-  _$setValue(value: unknown, directiveParent: DirectiveParent = this): void {
+  _$setValue(value: unknown): void {
     if (DEV_MODE && this.parentNode === null) {
       throw new Error(
         `This \`ChildPart\` has no \`parentNode\` and therefore cannot accept a value. This likely means the element containing the part was manipulated in an unsupported way outside of Lit's control such that the part's marker nodes were ejected from DOM. For example, setting the element's \`innerHTML\` or \`textContent\` can do this.`
       );
     }
-    value = resolveDirective(this, value, directiveParent);
     if (isPrimitive(value)) {
       // Non-rendering child values. It's important that these do not render
       // empty text nodes to avoid issues with preventing default <slot>
@@ -865,9 +773,7 @@ export class ChildPart implements Disconnectable {
     this._$committedValue = value;
   }
 
-  private _commitTemplateResult(
-    result: TemplateResult
-  ): void {
+  private _commitTemplateResult(result: TemplateResult): void {
     // This property needs to remain unminified.
     const {values} = result;
     // If $litType$ is a number, result is a plain TemplateResult and we get
@@ -1042,8 +948,6 @@ export class AttributePart implements Disconnectable {
   /** @internal */
   _$committedValue: unknown | Array<unknown> = nothing;
   /** @internal */
-  __directives?: Array<Directive | undefined>;
-  /** @internal */
   _$parent: Disconnectable;
   /** @internal */
   _$disconnectableChildren?: Set<Disconnectable> = undefined;
@@ -1105,7 +1009,6 @@ export class AttributePart implements Disconnectable {
    */
   _$setValue(
     value: unknown | Array<unknown>,
-    directiveParent: DirectiveParent = this,
     valueIndex?: number,
     noCommit?: boolean
   ) {
@@ -1115,8 +1018,6 @@ export class AttributePart implements Disconnectable {
     let change = false;
 
     if (strings === undefined) {
-      // Single-value binding case
-      value = resolveDirective(this, value, directiveParent, 0);
       change =
         !isPrimitive(value) ||
         (value !== this._$committedValue && value !== noChange);
@@ -1130,7 +1031,7 @@ export class AttributePart implements Disconnectable {
 
       let i, v;
       for (i = 0; i < strings.length - 1; i++) {
-        v = resolveDirective(this, values[valueIndex! + i], directiveParent, i);
+        v = values[valueIndex! + i];
 
         if (v === noChange) {
           // If the user-provided value is `noChange`, use the previous value
@@ -1170,161 +1071,5 @@ export class AttributePart implements Disconnectable {
       }
       this.element.setAttribute(this.name, (value ?? '') as string);
     }
-  }
-}
-
-export class PropertyPart extends AttributePart {
-  override readonly type = PROPERTY_PART;
-
-  /** @internal */
-  override _commitValue(value: unknown) {
-    if (ENABLE_EXTRA_SECURITY_HOOKS) {
-      if (this._sanitizer === undefined) {
-        this._sanitizer = createSanitizer(this.element, this.name, 'property');
-      }
-      value = this._sanitizer(value);
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.element as any)[this.name] = value === nothing ? undefined : value;
-  }
-}
-
-export class BooleanAttributePart extends AttributePart {
-  override readonly type = BOOLEAN_ATTRIBUTE_PART;
-
-  /** @internal */
-  override _commitValue(value: unknown) {
-    this.element.toggleAttribute(this.name, !!value && value !== nothing);
-  }
-}
-
-type EventListenerWithOptions = EventListenerOrEventListenerObject &
-  Partial<AddEventListenerOptions>;
-
-/**
- * An AttributePart that manages an event listener via add/removeEventListener.
- *
- * This part works by adding itself as the event listener on an element, then
- * delegating to the value passed to it. This reduces the number of calls to
- * add/removeEventListener if the listener changes frequently, such as when an
- * inline function is used as a listener.
- *
- * Because event options are passed when adding listeners, we must take case
- * to add and remove the part as a listener when the event options change.
- */
-export class EventPart extends AttributePart {
-  override readonly type = EVENT_PART;
-
-  constructor(
-    element: HTMLElement,
-    name: string,
-    strings: ReadonlyArray<string>,
-    parent: Disconnectable,
-    options: RenderOptions | undefined
-  ) {
-    super(element, name, strings, parent, options);
-
-    if (DEV_MODE && this.strings !== undefined) {
-      throw new Error(
-        `A \`<${element.localName}>\` has a \`@${name}=...\` listener with ` +
-          'invalid content. Event listeners in templates must have exactly ' +
-          'one expression and no surrounding text.'
-      );
-    }
-  }
-
-  // EventPart does not use the base _$setValue/_resolveValue implementation
-  // since the dirty checking is more complex
-  /** @internal */
-  override _$setValue(
-    newListener: unknown,
-    directiveParent: DirectiveParent = this
-  ) {
-    newListener =
-      resolveDirective(this, newListener, directiveParent, 0) ?? nothing;
-    if (newListener === noChange) {
-      return;
-    }
-    const oldListener = this._$committedValue;
-
-    // If the new value is nothing or any options change we have to remove the
-    // part as a listener.
-    const shouldRemoveListener =
-      (newListener === nothing && oldListener !== nothing) ||
-      (newListener as EventListenerWithOptions).capture !==
-        (oldListener as EventListenerWithOptions).capture ||
-      (newListener as EventListenerWithOptions).once !==
-        (oldListener as EventListenerWithOptions).once ||
-      (newListener as EventListenerWithOptions).passive !==
-        (oldListener as EventListenerWithOptions).passive;
-
-    // If the new value is not nothing and we removed the listener, we have
-    // to add the part as a listener.
-    const shouldAddListener =
-      newListener !== nothing &&
-      (oldListener === nothing || shouldRemoveListener);
-
-    if (shouldRemoveListener) {
-      this.element.removeEventListener(
-        this.name,
-        this,
-        oldListener as EventListenerWithOptions
-      );
-    }
-    if (shouldAddListener) {
-      // Beware: IE11 and Chrome 41 don't like using the listener as the
-      // options object. Figure out how to deal w/ this in IE11 - maybe
-      // patch addEventListener?
-      this.element.addEventListener(
-        this.name,
-        this,
-        newListener as EventListenerWithOptions
-      );
-    }
-    this._$committedValue = newListener;
-  }
-
-  handleEvent(event: Event) {
-    if (typeof this._$committedValue === 'function') {
-      this._$committedValue.call(this.options?.host ?? this.element, event);
-    } else {
-      (this._$committedValue as EventListenerObject).handleEvent(event);
-    }
-  }
-}
-
-export class ElementPart implements Disconnectable {
-  readonly type = ELEMENT_PART;
-
-  /** @internal */
-  __directive?: Directive;
-
-  // This is to ensure that every Part has a _$committedValue
-  _$committedValue: undefined;
-
-  /** @internal */
-  _$parent!: Disconnectable;
-
-  /** @internal */
-  _$disconnectableChildren?: Set<Disconnectable> = undefined;
-
-  options: RenderOptions | undefined;
-
-  constructor(
-    public element: Element,
-    parent: Disconnectable,
-    options: RenderOptions | undefined
-  ) {
-    this._$parent = parent;
-    this.options = options;
-  }
-
-  // See comment in Disconnectable interface for why this is a getter
-  get _$isConnected() {
-    return this._$parent._$isConnected;
-  }
-
-  _$setValue(value: unknown): void {
-    resolveDirective(this, value);
   }
 }

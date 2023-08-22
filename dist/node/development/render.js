@@ -39,16 +39,7 @@ const render = (value, container, options) => {
         // which reads like an internal Lit error.
         throw new TypeError(`The container to render into may not be ${container}`);
     }
-    const partOwnerNode = options?.renderBefore ?? container;
-    // This property needs to remain unminified.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let part = partOwnerNode['_$litPart$'];
-    if (part === undefined) {
-        const endNode = options?.renderBefore ?? null;
-        // This property needs to remain unminified.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        partOwnerNode['_$litPart$'] = part = new ChildPart(container.insertBefore(document.createComment(''), endNode), endNode, undefined, options ?? { useDomParts: domPartsSupported });
-    }
+    let part = new ChildPart(container.insertBefore(document.createComment(''), null), null, undefined, options ?? { useDomParts: domPartsSupported });
     part._$setValue(value);
     return part;
 };

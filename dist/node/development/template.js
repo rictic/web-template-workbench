@@ -28,9 +28,6 @@ const isIterable = (value) => isArray(value) ||
 // IMPORTANT: these must match the values in PartType
 const ATTRIBUTE_PART = 1;
 const CHILD_PART = 2;
-const PROPERTY_PART = 3;
-const BOOLEAN_ATTRIBUTE_PART = 4;
-const EVENT_PART = 5;
 const ELEMENT_PART = 6;
 const COMMENT_PART = 7;
 /**
@@ -68,42 +65,6 @@ const nothing = Symbol.for('lit-nothing');
 const manualTemplateCache = new WeakMap();
 const domPartsTemplateCache = new WeakMap();
 const walker = d.createTreeWalker(d, 129 /* NodeFilter.SHOW_{ELEMENT|COMMENT} */);
-function resolveDirective(part, value, parent = part, attributeIndex) {
-    // Bail early if the value is explicitly noChange. Note, this means any
-    // nested directive is still attached and is not run.
-    if (value === noChange) {
-        return value;
-    }
-    let currentDirective = attributeIndex !== undefined
-        ? parent.__directives?.[attributeIndex]
-        : parent.__directive;
-    const nextDirectiveConstructor = isPrimitive(value)
-        ? undefined
-        : // This property needs to remain unminified.
-            value['_$litDirective$'];
-    if (currentDirective?.constructor !== nextDirectiveConstructor) {
-        // This property needs to remain unminified.
-        currentDirective?.['_$notifyDirectiveConnectionChanged']?.(false);
-        if (nextDirectiveConstructor === undefined) {
-            currentDirective = undefined;
-        }
-        else {
-            currentDirective = new nextDirectiveConstructor(part);
-            currentDirective._$initialize(part, parent, attributeIndex);
-        }
-        if (attributeIndex !== undefined) {
-            (parent.__directives ??= [])[attributeIndex] =
-                currentDirective;
-        }
-        else {
-            parent.__directive = currentDirective;
-        }
-    }
-    if (currentDirective !== undefined) {
-        value = resolveDirective(part, currentDirective._$resolve(part, value.values), currentDirective, attributeIndex);
-    }
-    return value;
-}
 class ManualTemplate {
     constructor(
     // This property needs to remain unminified.
@@ -158,13 +119,7 @@ class ManualTemplate {
                                 index: nodeIndex,
                                 name: m[2],
                                 strings: statics,
-                                ctor: m[1] === '.'
-                                    ? PropertyPart
-                                    : m[1] === '?'
-                                        ? BooleanAttributePart
-                                        : m[1] === '@'
-                                            ? EventPart
-                                            : AttributePart,
+                                ctor: AttributePart,
                             });
                             node.removeAttribute(name);
                         }
@@ -276,9 +231,6 @@ class ManualTemplateInstance {
                 else if (templatePart.type === ATTRIBUTE_PART) {
                     part = new templatePart.ctor(node, templatePart.name, templatePart.strings, this, options);
                 }
-                else if (templatePart.type === ELEMENT_PART) {
-                    part = new ElementPart(node, this, options);
-                }
                 this._$parts.push(part);
                 templatePart = parts[++partIndex];
             }
@@ -298,7 +250,7 @@ class ManualTemplateInstance {
         for (const part of this._$parts) {
             if (part !== undefined) {
                 if (part.strings !== undefined) {
-                    part._$setValue(values, part, i);
+                    part._$setValue(values, i);
                     // The number of values the part consumes is part.strings.length - 1
                     // since values are in between template spans. We increment i by 1
                     // later in the loop, so increment it by part.strings.length - 2 here
@@ -348,24 +300,11 @@ class DomPartsTemplate {
                             this.parts.push(attributePart);
                         }
                         let name = part.metadata[++i];
-                        let ctor = AttributePart;
-                        if (name.startsWith('.')) {
-                            ctor = PropertyPart;
-                            name = name.slice(1);
-                        }
-                        else if (name.startsWith('@')) {
-                            ctor = EventPart;
-                            name = name.slice(1);
-                        }
-                        else if (name.startsWith('?')) {
-                            ctor = BooleanAttributePart;
-                            name = name.slice(1);
-                        }
                         attributePart = {
                             type: ATTRIBUTE_PART,
                             index,
                             name,
-                            ctor,
+                            ctor: AttributePart,
                             strings: [],
                         };
                     }
@@ -421,9 +360,6 @@ class DomPartsTemplateInstance {
                 case CHILD_PART:
                     this._$parts.push(new ChildPart(domPart.previousSibling, domPart.nextSibling, this, options));
                     break;
-                case ELEMENT_PART:
-                    this._$parts.push(new ElementPart(domPart.node, this, options));
-                    break;
                 case ATTRIBUTE_PART: {
                     this._$parts.push(new part.ctor(domPart.node, part.name, part.strings, this, options));
                     break;
@@ -437,7 +373,7 @@ class DomPartsTemplateInstance {
         for (const part of this._$parts) {
             if (part !== undefined) {
                 if (part.strings !== undefined) {
-                    part._$setValue(values, part, i);
+                    part._$setValue(values, i);
                     // The number of values the part consumes is part.strings.length - 1
                     // since values are in between template spans. We increment i by 1
                     // later in the loop, so increment it by part.strings.length - 2 here
@@ -523,11 +459,10 @@ class ChildPart {
     get endNode() {
         return this._$endNode;
     }
-    _$setValue(value, directiveParent = this) {
+    _$setValue(value) {
         if (this.parentNode === null) {
             throw new Error(`This \`ChildPart\` has no \`parentNode\` and therefore cannot accept a value. This likely means the element containing the part was manipulated in an unsupported way outside of Lit's control such that the part's marker nodes were ejected from DOM. For example, setting the element's \`innerHTML\` or \`textContent\` can do this.`);
         }
-        value = resolveDirective(this, value, directiveParent);
         if (isPrimitive(value)) {
             // Non-rendering child values. It's important that these do not render
             // empty text nodes to avoid issues with preventing default <slot>
@@ -795,13 +730,11 @@ class AttributePart {
      *
      * @internal
      */
-    _$setValue(value, directiveParent = this, valueIndex, noCommit) {
+    _$setValue(value, valueIndex, noCommit) {
         const strings = this.strings;
         // Whether any of the values has changed, for dirty-checking
         let change = false;
         if (strings === undefined) {
-            // Single-value binding case
-            value = resolveDirective(this, value, directiveParent, 0);
             change =
                 !isPrimitive(value) ||
                     (value !== this._$committedValue && value !== noChange);
@@ -815,7 +748,7 @@ class AttributePart {
             value = strings[0];
             let i, v;
             for (i = 0; i < strings.length - 1; i++) {
-                v = resolveDirective(this, values[valueIndex + i], directiveParent, i);
+                v = values[valueIndex + i];
                 if (v === noChange) {
                     // If the user-provided value is `noChange`, use the previous value
                     v = this._$committedValue[i];
@@ -853,114 +786,6 @@ class AttributePart {
         }
     }
 }
-class PropertyPart extends AttributePart {
-    constructor() {
-        super(...arguments);
-        this.type = PROPERTY_PART;
-    }
-    /** @internal */
-    _commitValue(value) {
-        {
-            if (this._sanitizer === undefined) {
-                this._sanitizer = createSanitizer(this.element, this.name, 'property');
-            }
-            value = this._sanitizer(value);
-        }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        this.element[this.name] = value === nothing ? undefined : value;
-    }
-}
-class BooleanAttributePart extends AttributePart {
-    constructor() {
-        super(...arguments);
-        this.type = BOOLEAN_ATTRIBUTE_PART;
-    }
-    /** @internal */
-    _commitValue(value) {
-        this.element.toggleAttribute(this.name, !!value && value !== nothing);
-    }
-}
-/**
- * An AttributePart that manages an event listener via add/removeEventListener.
- *
- * This part works by adding itself as the event listener on an element, then
- * delegating to the value passed to it. This reduces the number of calls to
- * add/removeEventListener if the listener changes frequently, such as when an
- * inline function is used as a listener.
- *
- * Because event options are passed when adding listeners, we must take case
- * to add and remove the part as a listener when the event options change.
- */
-class EventPart extends AttributePart {
-    constructor(element, name, strings, parent, options) {
-        super(element, name, strings, parent, options);
-        this.type = EVENT_PART;
-        if (this.strings !== undefined) {
-            throw new Error(`A \`<${element.localName}>\` has a \`@${name}=...\` listener with ` +
-                'invalid content. Event listeners in templates must have exactly ' +
-                'one expression and no surrounding text.');
-        }
-    }
-    // EventPart does not use the base _$setValue/_resolveValue implementation
-    // since the dirty checking is more complex
-    /** @internal */
-    _$setValue(newListener, directiveParent = this) {
-        newListener =
-            resolveDirective(this, newListener, directiveParent, 0) ?? nothing;
-        if (newListener === noChange) {
-            return;
-        }
-        const oldListener = this._$committedValue;
-        // If the new value is nothing or any options change we have to remove the
-        // part as a listener.
-        const shouldRemoveListener = (newListener === nothing && oldListener !== nothing) ||
-            newListener.capture !==
-                oldListener.capture ||
-            newListener.once !==
-                oldListener.once ||
-            newListener.passive !==
-                oldListener.passive;
-        // If the new value is not nothing and we removed the listener, we have
-        // to add the part as a listener.
-        const shouldAddListener = newListener !== nothing &&
-            (oldListener === nothing || shouldRemoveListener);
-        if (shouldRemoveListener) {
-            this.element.removeEventListener(this.name, this, oldListener);
-        }
-        if (shouldAddListener) {
-            // Beware: IE11 and Chrome 41 don't like using the listener as the
-            // options object. Figure out how to deal w/ this in IE11 - maybe
-            // patch addEventListener?
-            this.element.addEventListener(this.name, this, newListener);
-        }
-        this._$committedValue = newListener;
-    }
-    handleEvent(event) {
-        if (typeof this._$committedValue === 'function') {
-            this._$committedValue.call(this.options?.host ?? this.element, event);
-        }
-        else {
-            this._$committedValue.handleEvent(event);
-        }
-    }
-}
-class ElementPart {
-    constructor(element, parent, options) {
-        this.element = element;
-        this.type = ELEMENT_PART;
-        /** @internal */
-        this._$disconnectableChildren = undefined;
-        this._$parent = parent;
-        this.options = options;
-    }
-    // See comment in Disconnectable interface for why this is a getter
-    get _$isConnected() {
-        return this._$parent._$isConnected;
-    }
-    _$setValue(value) {
-        resolveDirective(this, value);
-    }
-}
 
-export { AttributePart, BooleanAttributePart, ChildPart, ElementPart, EventPart, PropertyPart, isIterable, noChange, nothing, resolveDirective };
+export { AttributePart, ChildPart, isIterable, noChange, nothing };
 //# sourceMappingURL=template.js.map
