@@ -3,5 +3,5 @@ import{isIterable as t,resolveDirective as e,ChildPart as r,AttributePart as a,B
  * @license
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
- */const f={O:m,S:s,C:_,A:P,j:p,k:t,M:e,D:r,L:a,N:o,R:i,V:l,H:n};export{f as _$LH};
+ */const f={T:m,O:s,S:_,C:P,A:p,j:t,k:e,M:r,D:a,L:o,N:i,R:l,V:n};export{f as _$LH};
 //# sourceMappingURL=index.js.map

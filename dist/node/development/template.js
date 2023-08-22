@@ -1,4 +1,4 @@
-import { trustFromTemplateString, getTemplateHtml, marker, boundAttributeSuffix, rawTextElement, markerMatch } from './get-template-html.js';
+import { getTemplateHtml, marker, boundAttributeSuffix, rawTextElement, markerMatch } from './get-template-html.js';
 import { sanitizerActive, createSanitizer } from './sanitizer.js';
 import { templateFromLiterals } from './template-from-literals.js';
 import { SVG_RESULT } from './ttl.js';
@@ -631,16 +631,12 @@ class ChildPart {
     }
     _commitTemplateResult(result) {
         // This property needs to remain unminified.
-        const { values, ['_$litType$']: type } = result;
+        const { values } = result;
         // If $litType$ is a number, result is a plain TemplateResult and we get
         // the template from the template cache. If not, result is a
         // CompiledTemplateResult and _$litType$ is a CompiledTemplate and we need
         // to create the <template> element the first time we see it.
-        const template = typeof type === 'number'
-            ? this._$getTemplate(result)
-            : (type.el === undefined &&
-                (type.el = ManualTemplate.createElement(trustFromTemplateString(type.h, type.h[0]), this.options)),
-                type);
+        const template = this._$getTemplate(result);
         if (this._$committedValue?._$template === template) {
             this._$committedValue._update(values);
         }

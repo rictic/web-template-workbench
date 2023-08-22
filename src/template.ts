@@ -11,7 +11,6 @@ import {
   marker,
   markerMatch,
   rawTextElement,
-  trustFromTemplateString,
 } from './get-template-html.js';
 import {DEV_MODE, ENABLE_EXTRA_SECURITY_HOOKS, NODE_MODE} from './modes.js';
 import {RenderOptions} from './render.js';
@@ -53,22 +52,6 @@ const BOOLEAN_ATTRIBUTE_PART = 4;
 const EVENT_PART = 5;
 const ELEMENT_PART = 6;
 const COMMENT_PART = 7;
-
-export interface CompiledTemplate extends Omit<Template, 'el'> {
-  // el is overridden to be optional. We initialize it on first render
-  el?: HTMLTemplateElement;
-
-  // The prepared HTML string to create a template element from.
-  // The type is a TemplateStringsArray to guarantee that the value came from
-  // source code, preventing a JSON injection attack.
-  h: TemplateStringsArray;
-}
-
-export interface CompiledTemplateResult {
-  // This property needs to remain unminified.
-  ['_$litType$']: CompiledTemplate;
-  values: unknown[];
-}
 
 /**
  * A sentinel value that signals that a value was handled by a directive and
@@ -883,23 +866,15 @@ export class ChildPart implements Disconnectable {
   }
 
   private _commitTemplateResult(
-    result: TemplateResult | CompiledTemplateResult
+    result: TemplateResult
   ): void {
     // This property needs to remain unminified.
-    const {values, ['_$litType$']: type} = result;
+    const {values} = result;
     // If $litType$ is a number, result is a plain TemplateResult and we get
     // the template from the template cache. If not, result is a
     // CompiledTemplateResult and _$litType$ is a CompiledTemplate and we need
     // to create the <template> element the first time we see it.
-    const template: Template | CompiledTemplate =
-      typeof type === 'number'
-        ? this._$getTemplate(result as TemplateResult)
-        : (type.el === undefined &&
-            (type.el = ManualTemplate.createElement(
-              trustFromTemplateString(type.h, type.h[0]),
-              this.options
-            )),
-          type);
+    const template: Template = this._$getTemplate(result);
 
     if ((this._$committedValue as TemplateInstance)?._$template === template) {
       (this._$committedValue as TemplateInstance)._update(values);

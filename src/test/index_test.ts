@@ -13,14 +13,12 @@ import {
   SVGTemplateResult,
   SanitizerFactory,
   Part,
-  CompiledTemplate,
   _testOnlyClearSanitizerFactoryDoNotCallOrElse,
   setSanitizer,
   html,
 } from '../index.js';
 import {
   commentTest,
-  compiledSuite,
   rawTest,
   skipIfDomParts,
 } from './test-utils/dom-parts.js';
@@ -35,8 +33,6 @@ import {assert} from '@esm-bundle/chai';
 import {stripExpressionComments} from '@lit-labs/testing';
 import {repeat} from '../directives/repeat.js';
 import {AsyncDirective} from '../async-directive.js';
-
-import {createRef, ref} from '../directives/ref.js';
 
 // For compiled template tests
 import {_$LH} from '../private-ssr-support.js';
@@ -1576,93 +1572,6 @@ suite('lit-html', () => {
         assert.notEqual(fooDiv, barDiv);
       }
     );
-  });
-
-  compiledSuite('compiled', () => {
-    const branding_tag = (s: TemplateStringsArray) => s;
-
-    test('only text', () => {
-      // A compiled template for html`${'A'}`
-      const _$lit_template_1: CompiledTemplate = {
-        h: branding_tag`<!---->`,
-        parts: [{type: 2, index: 0}],
-      };
-      assertRender(
-        {
-          // This property needs to remain unminified.
-          ['_$litType$']: _$lit_template_1,
-          values: ['A'],
-        },
-        'A'
-      );
-    });
-
-    test('text expression', () => {
-      // A compiled template for html`<div>${'A'}</div>`
-      const _$lit_template_1: CompiledTemplate = {
-        h: branding_tag`<div><!----></div>`,
-        parts: [{type: 2, index: 1}],
-      };
-      const result = {
-        // This property needs to remain unminified.
-        ['_$litType$']: _$lit_template_1,
-        values: ['A'],
-      };
-      assertRender(result, '<div>A</div>');
-    });
-
-    test('attribute expression', () => {
-      // A compiled template for html`<div foo=${'A'}></div>`
-      const _$lit_template_1: CompiledTemplate = {
-        h: branding_tag`<div></div>`,
-        parts: [
-          {
-            type: 1,
-            index: 0,
-            name: 'foo',
-            strings: ['', ''],
-            ctor: AttributePart,
-          },
-        ],
-      };
-      const result = {
-        // This property needs to remain unminified.
-        ['_$litType$']: _$lit_template_1,
-        values: ['A'],
-      };
-      assertRender(result, '<div foo="A"></div>');
-    });
-
-    test('element expression', () => {
-      const r = createRef();
-      // A compiled template for html`<div ${ref(r)}></div>`
-      const _$lit_template_1: CompiledTemplate = {
-        h: branding_tag`<div></div>`,
-        parts: [{type: 6, index: 0}],
-      };
-      const result = {
-        // This property needs to remain unminified.
-        ['_$litType$']: _$lit_template_1,
-        values: [ref(r)],
-      };
-      assertRender(result, '<div></div>');
-      const div = container.firstElementChild;
-      assert.isDefined(div);
-      assert.strictEqual(r.value, div);
-    });
-
-    test(`throw if unbranded`, () => {
-      const _$lit_template_1: CompiledTemplate = {
-        h: ['<div><!----></div>'] as unknown as TemplateStringsArray,
-        parts: [{type: 2, index: 1}],
-      };
-      const result = {
-        // This property needs to remain unminified.
-        ['_$litType$']: _$lit_template_1,
-        values: ['A'],
-      };
-      assert.throws(() => render(result, container));
-    });
   });
 
   suite('directives', () => {
