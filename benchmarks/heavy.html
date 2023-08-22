@@ -70,12 +70,44 @@ Parameters:
           </div>
         `;
       }
+      function drawComparison(left, right) {
+        if (left.times.length === 0 || right.times.length === 0) {
+          return nothing;
+        }
+        const leftAverage =
+          left.times.reduce((a, b) => a + b, 0) / left.times.length;
+        const rightAverage =
+          right.times.reduce((a, b) => a + b, 0) / right.times.length;
+        const diff = leftAverage - rightAverage;
+        let faster, slower;
+        if (diff < 0) {
+          faster = left;
+          slower = right;
+        } else {
+          faster = right;
+          slower = left;
+        }
+        const timesFaster =
+          1 + Math.abs(diff) / Math.min(leftAverage, rightAverage);
+        return html`
+          <div>
+            <span>
+              ${faster.name} is ${timesFaster.toFixed(2)}x faster than
+              ${slower.name} over ${left.times.length} runs.
+            </span>
+          </div>
+        `;
+      }
       let numRuns = 100;
       let running = false;
       function main() {
+        const gcAvailable = window.gc
+          ? ""
+          : `[window.gc is not availabe, run with --js-flags="--expose-gc"]`;
         render(
           html`
             <div>
+              <div>${gcAvailable}</div>
               <button @click=${() => runMany(numRuns)}>
                 Run ${numRuns} times
               </button>
@@ -95,6 +127,7 @@ Parameters:
               </div>
             </div>
             ${drawConfig(domParts)} ${drawConfig(manual)}
+            ${drawComparison(domParts, manual)}
           `,
           document.body
         );
@@ -110,15 +143,24 @@ Parameters:
         for (let i = 0; i < count; i++) {
           test(domParts);
           test(manual);
+          // yield periodically to the event loop so we don't seem unresponsive
+          await waitForPaint();
         }
         running = false;
         main();
       }
       main();
       function test(config) {
+        if (window.gc) {
+          window.gc();
+          window.gc();
+        }
+        const container = document.createElement("div");
+        document.body.appendChild(container);
         const startTime = performance.now();
-        update(document.createElement("div"), config.options);
+        update(container, config.options);
         config.times.push(performance.now() - startTime);
+        document.body.removeChild(container);
       }
     </script>
   </body>
