@@ -7,6 +7,8 @@ import { createRequire } from "module";
 import { playwrightLauncher } from "@web/test-runner-playwright";
 import { createSauceLabsLauncher } from "@web/test-runner-saucelabs";
 import { legacyPlugin } from "@web/dev-server-legacy";
+import * as fs from "node:fs";
+
 const mode = process.env.MODE || "dev";
 if (!["dev", "prod"].includes(mode)) {
   throw new Error(`MODE must be "dev" or "prod", was "${mode}"`);
@@ -17,6 +19,7 @@ const browserPresets = {
     "chromium",
     "firefox",
     "webkit", // individual browsers
+    "chromium-canary",
   ],
   // Browsers to test during automated continuous integration.
   //
@@ -119,7 +122,7 @@ See https://wiki.saucelabs.com/display/DOCS/Platform+Configurator for all option
   }
   const config = {
     product: browser,
-    ...(browser === "chromium"
+    ...(["chromium", "chromium-canary"].includes(browser)
       ? {
           launchOptions: {
             args: ["--js-flags=--expose-gc", "--enable-precise-memory-info"],
@@ -127,6 +130,18 @@ See https://wiki.saucelabs.com/display/DOCS/Platform+Configurator for all option
         }
       : {}),
   };
+  if (browser === "chromium-canary") {
+    config.product = "chromium";
+    config.channel = "chrome-canary";
+    config.launchOptions.args.push(
+      "-enable-experimental-web-platform-features"
+    );
+    const chromeCanaryPath =
+      "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary";
+    if (fs.existsSync(chromeCanaryPath)) {
+      config.launchOptions.executablePath = chromeCanaryPath;
+    }
+  }
   return [playwrightLauncher(config)];
 }
 const browsers = (process.env.BROWSERS || "preset:local")

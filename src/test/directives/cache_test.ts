@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import {html, render, nothing} from '../../index.js';
+import {render, html, nothing} from '../../index.js';
 import {cache} from '../../directives/cache.js';
-import {stripExpressionComments} from '@lit-labs/testing';
 import {assert} from '@esm-bundle/chai';
 import {directive, AsyncDirective} from '../../async-directive.js';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 suite('cache directive', () => {
   let container: HTMLDivElement;
@@ -16,6 +16,8 @@ suite('cache directive', () => {
   setup(() => {
     container = document.createElement('div');
   });
+
+  const {assertContent, assertRender} = makeAsserts(() => container);
 
   test('caches templates', () => {
     const renderCached = (condition: any, v: string) =>
@@ -27,39 +29,26 @@ suite('cache directive', () => {
       );
 
     renderCached(true, 'A');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div v="A"></div>'
-    );
-    const element1 = container.firstElementChild;
+    assertContent('<div v="A"></div>');
+    const element1 = container.querySelector('div');
 
     renderCached(false, 'B');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<span v="B"></span>'
-    );
-    const element2 = container.firstElementChild;
+    assertContent('<span v="B"></span>');
+    const element2 = container.querySelector('span');
 
     assert.notStrictEqual(element1, element2);
 
     renderCached(true, 'C');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div v="C"></div>'
-    );
-    assert.strictEqual(container.firstElementChild, element1);
+    assertContent('<div v="C"></div>');
+    assert.strictEqual(container.querySelector('div'), element1);
 
     renderCached(false, 'D');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<span v="D"></span>'
-    );
-    assert.strictEqual(container.firstElementChild, element2);
+    assertContent('<span v="D"></span>');
+    assert.strictEqual(container.querySelector('span'), element2);
   });
 
   test('renders non-TemplateResults', () => {
-    render(html`${cache('abc')}`, container);
-    assert.equal(stripExpressionComments(container.innerHTML), 'abc');
+    assertRender(html`${cache('abc')}`, 'abc');
   });
 
   test('caches templates when switching against non-TemplateResults', () => {
@@ -70,24 +59,21 @@ suite('cache directive', () => {
       );
 
     renderCached(true, 'A');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div v="A"></div>'
-    );
-    const element1 = container.firstElementChild;
+    assertContent('<div v="A"></div>');
+    const element1 = container.firstElementChild?.firstElementChild;
 
     renderCached(false, 'B');
-    assert.equal(stripExpressionComments(container.innerHTML), 'B');
+    assertContent('B');
 
     renderCached(true, 'C');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div v="C"></div>'
+    assertContent('<div v="C"></div>');
+    assert.strictEqual(
+      container.firstElementChild?.firstElementChild,
+      element1
     );
-    assert.strictEqual(container.firstElementChild, element1);
 
     renderCached(false, 'D');
-    assert.equal(stripExpressionComments(container.innerHTML), 'D');
+    assertContent('D');
   });
 
   test('caches templates when switching against TemplateResult and undefined values', () => {
@@ -95,13 +81,13 @@ suite('cache directive', () => {
       render(html`<div>${cache(v)}</div>`, container);
 
     renderCached(html`A`);
-    assert.equal(stripExpressionComments(container.innerHTML), '<div>A</div>');
+    assertContent('<div>A</div>');
 
     renderCached(undefined);
-    assert.equal(stripExpressionComments(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     renderCached(html`B`);
-    assert.equal(stripExpressionComments(container.innerHTML), '<div>B</div>');
+    assertContent('<div>B</div>');
   });
 
   test('cache can be dynamic', () => {
@@ -112,22 +98,16 @@ suite('cache directive', () => {
       );
 
     renderMaybeCached(true, 'A');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div v="A"></div>'
-    );
+    assertContent('<div v="A"></div>');
 
     renderMaybeCached(false, 'B');
-    assert.equal(stripExpressionComments(container.innerHTML), 'B');
+    assertContent('B');
 
     renderMaybeCached(true, 'C');
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div v="C"></div>'
-    );
+    assertContent('<div v="C"></div>');
 
     renderMaybeCached(false, 'D');
-    assert.equal(stripExpressionComments(container.innerHTML), 'D');
+    assertContent('D');
   });
 
   test('cache can switch between TemplateResult and non-TemplateResult', () => {
@@ -135,21 +115,21 @@ suite('cache directive', () => {
       render(html`${cache(bool ? html`<p></p>` : nothing)}`, container);
 
     renderCache(true);
-    assert.equal(stripExpressionComments(container.innerHTML), '<p></p>');
+    assertContent('<p></p>');
     renderCache(false);
-    assert.equal(stripExpressionComments(container.innerHTML), '');
+    assertContent('');
     renderCache(true);
-    assert.equal(stripExpressionComments(container.innerHTML), '<p></p>');
+    assertContent('<p></p>');
     renderCache(true);
-    assert.equal(stripExpressionComments(container.innerHTML), '<p></p>');
+    assertContent('<p></p>');
     renderCache(false);
-    assert.equal(stripExpressionComments(container.innerHTML), '');
+    assertContent('');
     renderCache(true);
-    assert.equal(stripExpressionComments(container.innerHTML), '<p></p>');
+    assertContent('<p></p>');
     renderCache(false);
-    assert.equal(stripExpressionComments(container.innerHTML), '');
+    assertContent('');
     renderCache(false);
-    assert.equal(stripExpressionComments(container.innerHTML), '');
+    assertContent('');
   });
 
   test('async directives disconnect/reconnect when moved in/out of cache', () => {
@@ -183,34 +163,22 @@ suite('cache directive', () => {
     const log: string[] = [];
 
     renderCached(log, true);
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div><div>a</div></div>'
-    );
+    assertContent('<div><div>a</div></div>');
     assert.deepEqual(log, ['render-a']);
 
     log.length = 0;
     renderCached(log, false);
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div><span>b</span></div>'
-    );
+    assertContent('<div><span>b</span></div>');
     assert.deepEqual(log, ['disconnected-a', 'render-b']);
 
     log.length = 0;
     renderCached(log, true);
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div><div>a</div></div>'
-    );
+    assertContent('<div><div>a</div></div>');
     assert.deepEqual(log, ['disconnected-b', 'reconnected-a', 'render-a']);
 
     log.length = 0;
     renderCached(log, false);
-    assert.equal(
-      stripExpressionComments(container.innerHTML),
-      '<div><span>b</span></div>'
-    );
+    assertContent('<div><span>b</span></div>');
     assert.deepEqual(log, ['disconnected-a', 'reconnected-b', 'render-b']);
   });
 });

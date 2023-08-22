@@ -5,12 +5,9 @@
  */
 import {
   ChildPart,
-  CompiledTemplateResult,
-  html,
   noChange,
   nothing,
   render,
-  RenderOptions,
   svg,
   TemplateResult,
   SVGTemplateResult,
@@ -19,8 +16,14 @@ import {
   CompiledTemplate,
   _testOnlyClearSanitizerFactoryDoNotCallOrElse,
   setSanitizer,
+  html,
 } from '../index.js';
-
+import {
+  commentTest,
+  compiledSuite,
+  rawTest,
+  skipIfDomParts,
+} from './test-utils/dom-parts.js';
 import {
   directive,
   Directive,
@@ -29,10 +32,7 @@ import {
   DirectiveParameters,
 } from '../directive.js';
 import {assert} from '@esm-bundle/chai';
-import {
-  stripExpressionComments,
-  stripExpressionMarkers,
-} from '@lit-labs/testing';
+import {stripExpressionComments} from '@lit-labs/testing';
 import {repeat} from '../directives/repeat.js';
 import {AsyncDirective} from '../async-directive.js';
 
@@ -41,7 +41,8 @@ import {createRef, ref} from '../directives/ref.js';
 // For compiled template tests
 import {_$LH} from '../private-ssr-support.js';
 import {until} from '../directives/until.js';
-import {DEV_MODE} from '../modes.js';
+import {DEV_MODE, domPartsSupported} from '../modes.js';
+import {makeAsserts} from './test-utils/assert-render.js';
 const {AttributePart} = _$LH;
 
 type AttributePart = InstanceType<typeof AttributePart>;
@@ -72,19 +73,7 @@ suite('lit-html', () => {
     container.id = 'container';
   });
 
-  const assertRender = (
-    r: TemplateResult | CompiledTemplateResult,
-    expected: string,
-    options?: RenderOptions
-  ) => {
-    const part = render(r, container, options);
-    assert.equal(stripExpressionComments(container.innerHTML), expected);
-    return part;
-  };
-
-  const assertContent = (expected: string) => {
-    assert.equal(stripExpressionComments(container.innerHTML), expected);
-  };
+  const {assertRender, assertContent} = makeAsserts(() => container);
 
   /**
    * These test the ability to insert the correct expression marker into the
@@ -130,7 +119,7 @@ suite('lit-html', () => {
       );
     });
 
-    test('text child of element with unbound quoted attribute', () => {
+    rawTest('text child of element with unbound quoted attribute', () => {
       assertRender(html`<div a="b">${'d'}</div>`, '<div a="b">d</div>');
 
       render(html`<script a="b" type="foo">${'d'}</script>`, container);
@@ -143,7 +132,7 @@ suite('lit-html', () => {
       );
     });
 
-    test('text child of element with unbound unquoted attribute', () => {
+    rawTest('text child of element with unbound unquoted attribute', () => {
       assertRender(html`<div a=b>${'d'}</div>`, '<div a="b">d</div>');
 
       render(html`<script a=b type="foo">${'d'}</script>`, container);
@@ -202,7 +191,7 @@ suite('lit-html', () => {
       assertRender(html`<a>${'foo'}</a>${'bar'}`, '<a>foo</a>bar');
     });
 
-    test('text in raw text elements', () => {
+    rawTest('text in raw text elements', () => {
       assertRender(
         html`<script type="foo">${'A'}</script>`,
         '<script type="foo">A</script>'
@@ -212,7 +201,7 @@ suite('lit-html', () => {
       assertRender(html`<textarea>${'A'}</textarea>`, '<textarea>A</textarea>');
     });
 
-    test('text in raw text element after <', () => {
+    rawTest('text in raw text element after <', () => {
       // It doesn't matter much what marker we use in <script>, <style> and
       // <textarea> since comments aren't parsed and we have to search the text
       // anyway.
@@ -222,60 +211,60 @@ suite('lit-html', () => {
       );
     });
 
-    test('text in raw text element after >', () => {
+    rawTest('text in raw text element after >', () => {
       assertRender(
         html`<script type="foo">i > j ${'A'}</script>`,
         '<script type="foo">i > j A</script>'
       );
     });
 
-    test('text in raw text element inside tag-like string', () => {
+    rawTest('text in raw text element inside tag-like string', () => {
       assertRender(
         html`<script type="foo">"<div a=${'A'}></div>";</script>`,
         '<script type="foo">"<div a=A></div>";</script>'
       );
     });
 
-    test('renders inside <script>: only node', () => {
+    rawTest('renders inside <script>: only node', () => {
       assertRender(
         html`<script type="foo">${'foo'}</script>`,
         '<script type="foo">foo</script>'
       );
     });
 
-    test('renders inside <script>: first node', () => {
+    rawTest('renders inside <script>: first node', () => {
       assertRender(
         html`<script type="foo">${'foo'}A</script>`,
         '<script type="foo">fooA</script>'
       );
     });
 
-    test('renders inside <script>: last node', () => {
+    rawTest('renders inside <script>: last node', () => {
       assertRender(
         html`<script type="foo">A${'foo'}</script>`,
         '<script type="foo">Afoo</script>'
       );
     });
 
-    test('renders inside <script>: multiple bindings', () => {
+    rawTest('renders inside <script>: multiple bindings', () => {
       assertRender(
         html`<script type="foo">A${'foo'}B${'bar'}C</script>`,
         '<script type="foo">AfooBbarC</script>'
       );
     });
 
-    test('renders inside <script>: attribute-like', () => {
+    rawTest('renders inside <script>: attribute-like', () => {
       assertRender(
         html`<script type="foo">a=${'foo'}</script>`,
         '<script type="foo">a=foo</script>'
       );
     });
 
-    test('text after script element', () => {
+    rawTest('text after script element', () => {
       assertRender(html`<script></script>${'A'}`, '<script></script>A');
     });
 
-    test('text after script element with binding', () => {
+    rawTest('text after script element with binding', () => {
       assertRender(
         html`<script type="foo">${'A'}</script>${'B'}`,
         '<script type="foo">A</script>B'
@@ -302,14 +291,14 @@ suite('lit-html', () => {
       assertRender(html`<style></style>${'A'}`, '<style></style>A');
     });
 
-    test('text inside raw text element, after different raw tag', () => {
+    rawTest('text inside raw text element, after different raw tag', () => {
       assertRender(
         html`<script type="foo"><style></style>"<div a=${'A'}></div>"</script>`,
         '<script type="foo"><style></style>"<div a=A></div>"</script>'
       );
     });
 
-    test('text inside raw text element, after different raw end tag', () => {
+    rawTest('text inside raw text element, after different raw end tag', () => {
       assertRender(
         html`<script type="foo"></style>"<div a=${'A'}></div>"</script>`,
         '<script type="foo"></style>"<div a=A></div>"</script>'
@@ -339,7 +328,10 @@ suite('lit-html', () => {
       assertRender(html`<div a="${'A'}"></div>`, '<div a="A"></div>');
       assertRender(html`<div abc="${'A'}"></div>`, '<div abc="A"></div>');
       assertRender(html`<div abc = "${'A'}"></div>`, '<div abc="A"></div>');
-      assertRender(html`<div abc="${'A'}/>"></div>`, '<div abc="A/>"></div>');
+      assertRender(html`<div abc="${'A'}/>"></div>`, [
+        '<div abc="A/>"></div>',
+        '<div abc="A/&gt;"></div>',
+      ]);
       assertRender(html`<input value="${'A'}"/>`, '<input value="A">');
     });
 
@@ -369,13 +361,13 @@ suite('lit-html', () => {
     });
 
     test('quoted attribute with markup', () => {
-      assertRender(
-        html`<div a="<table>${'A'}"></div>`,
-        '<div a="<table>A"></div>'
-      );
+      assertRender(html`<div a="<table>${'A'}"></div>`, [
+        '<div a="<table>A"></div>',
+        '<div a="&lt;table&gt;A"></div>',
+      ]);
     });
 
-    test('text after quoted bound attribute', () => {
+    rawTest('text after quoted bound attribute', () => {
       assertRender(html`<div a="${'A'}">${'A'}</div>`, '<div a="A">A</div>');
       assertRender(
         html`<script type="foo" a="${'A'}">${'A'}</script>`,
@@ -383,7 +375,7 @@ suite('lit-html', () => {
       );
     });
 
-    test('text after unquoted bound attribute', () => {
+    rawTest('text after unquoted bound attribute', () => {
       assertRender(html`<div a=${'A'}>${'A'}</div>`, '<div a="A">A</div>');
       assertRender(
         html`<script type="foo" a=${'A'}>${'A'}</script>`,
@@ -424,7 +416,7 @@ suite('lit-html', () => {
       assertRender(html`<div ${`c`} a="b"></div>`, '<div a="b"></div>');
     });
 
-    test('"dynamic" tag name', () => {
+    commentTest('"dynamic" tag name', () => {
       const template = html`<${'A'}></${'A'}>`;
       if (DEV_MODE) {
         assert.throws(() => {
@@ -432,11 +424,11 @@ suite('lit-html', () => {
         });
       } else {
         render(template, container);
-        assert.equal(stripExpressionMarkers(container.innerHTML), '<></>');
+        assertContent('<></>');
       }
     });
 
-    test('malformed "dynamic" tag name', () => {
+    commentTest('malformed "dynamic" tag name', () => {
       // `</ ` starts a comment
       const template = html`<${'A'}></ ${'A'}>`;
       if (DEV_MODE) {
@@ -445,10 +437,7 @@ suite('lit-html', () => {
         });
       } else {
         render(template, container);
-        assert.equal(
-          stripExpressionMarkers(container.innerHTML),
-          '<><!-- --></>'
-        );
+        assertContent('<><!-- --></>');
       }
     });
 
@@ -460,22 +449,16 @@ suite('lit-html', () => {
       // assertRender(html`<div></div ${'A'}>${'B'}`, '<div></div>B');
     });
 
-    test('comment', () => {
-      render(html`<!--${'A'}-->`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<!---->');
+    commentTest('comment', () => {
+      assertRender(html`<!--${'A'}-->`, '<!---->');
     });
 
-    test('comment with attribute-like content', () => {
-      render(html`<!-- a=${'A'}-->`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<!-- a=-->');
+    commentTest('comment with attribute-like content', () => {
+      assertRender(html`<!-- a=${'A'}-->`, '<!-- a=-->');
     });
 
-    test('comment with element-like content', () => {
-      render(html`<!-- <div>${'A'}</div> -->`, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<!-- <div></div> -->'
-      );
+    commentTest('comment with element-like content', () => {
+      assertRender(html`<!-- <div>${'A'}</div> -->`, '<!-- <div></div> -->');
     });
 
     test('text after comment', () => {
@@ -492,11 +475,13 @@ suite('lit-html', () => {
       const template = html`<span></span>`;
       assertRender(template, '<span></span><div></div>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       // Ensure re-render updates rather than re-rendering.
       const containerChildNodes = Array.from(container.childNodes);
       assertRender(template, '<span></span><div></div>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       assert.sameMembers(Array.from(container.childNodes), containerChildNodes);
     });
@@ -511,6 +496,7 @@ suite('lit-html', () => {
       const template = html`<span></span>`;
       assertRender(template, '<span></span><div></div><div></div>', {
         renderBefore: renderBefore1,
+        useDomParts: domPartsSupported,
       });
       const renderedNode1 = container.querySelector('span');
       assertRender(
@@ -518,6 +504,7 @@ suite('lit-html', () => {
         '<span></span><div></div><span></span><div></div>',
         {
           renderBefore: renderBefore2,
+          useDomParts: domPartsSupported,
         }
       );
       const renderedNode2 = container.querySelector('span:last-of-type');
@@ -527,6 +514,7 @@ suite('lit-html', () => {
         '<span></span><div></div><span></span><div></div>',
         {
           renderBefore: renderBefore1,
+          useDomParts: domPartsSupported,
         }
       );
       assert.equal(container.querySelector('span'), renderedNode1);
@@ -536,6 +524,7 @@ suite('lit-html', () => {
         '<span></span><div></div><span></span><div></div>',
         {
           renderBefore: renderBefore2,
+          useDomParts: domPartsSupported,
         }
       );
       assert.equal(container.querySelector('span'), renderedNode1);
@@ -549,6 +538,7 @@ suite('lit-html', () => {
       const containerRenderedNode = container.querySelector('span');
       assertRender(template, '<span></span><div></div><span></span>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       const beforeRenderedNode = container.querySelector('span');
       // Ensure re-render updates rather than re-rendering.
@@ -560,6 +550,7 @@ suite('lit-html', () => {
       assert.equal(container.querySelector('span'), beforeRenderedNode);
       assertRender(template, '<span></span><div></div><span></span>', {
         renderBefore,
+        useDomParts: domPartsSupported,
       });
       assert.equal(
         container.querySelector('span:last-of-type'),
@@ -582,7 +573,15 @@ suite('lit-html', () => {
     const assertNoRenderedNodes = () => {
       const children = Array.from(container.querySelector('div')!.childNodes);
       assert.isEmpty(
-        children.filter((node) => node.nodeType !== Node.COMMENT_NODE)
+        children.filter((node) => {
+          if (node.nodeType === Node.COMMENT_NODE) {
+            return false;
+          }
+          if (node.nodeType === Node.TEXT_NODE) {
+            return (node as Text).data !== '';
+          }
+          return true;
+        })
       );
     };
 
@@ -919,21 +918,18 @@ suite('lit-html', () => {
     });
 
     test('renders to an attribute expression after an attribute literal', () => {
-      render(html`<div a="b" foo="${'bar'}"></div>`, container);
-      // IE and Edge can switch attribute order!
-      assert.include(
-        ['<div a="b" foo="bar"></div>', '<div foo="bar" a="b"></div>'],
-        stripExpressionComments(container.innerHTML)
+      assertRender(
+        html`<div a="b" foo="${'bar'}"></div>`,
+        // IE and Edge can switch attribute order!
+        ['<div a="b" foo="bar"></div>', '<div foo="bar" a="b"></div>']
       );
     });
 
     test('renders to an attribute expression before an attribute literal', () => {
-      render(html`<div foo="${'bar'}" a="b"></div>`, container);
-      // IE and Edge can switch attribute order!
-      assert.include(
-        ['<div a="b" foo="bar"></div>', '<div foo="bar" a="b"></div>'],
-        stripExpressionComments(container.innerHTML)
-      );
+      assertRender(html`<div foo="${'bar'}" a="b"></div>`, [
+        '<div a="b" foo="bar"></div>',
+        '<div foo="bar" a="b"></div>',
+      ]);
     });
 
     // Regression test for exception in template parsing caused by attributes
@@ -952,23 +948,18 @@ suite('lit-html', () => {
     });
 
     test('renders multiple bound attributes', () => {
-      render(
+      assertRender(
         html`<div foo="${'Foo'}" bar="${'Bar'}" baz=${'Baz'}></div>`,
-        container
+        [
+          '<div foo="Foo" bar="Bar" baz="Baz"></div>',
+          '<div foo="Foo" baz="Baz" bar="Bar"></div>',
+          '<div bar="Bar" foo="Foo" baz="Baz"></div>',
+        ]
       );
-      assert.oneOf(stripExpressionComments(container.innerHTML), [
-        '<div foo="Foo" bar="Bar" baz="Baz"></div>',
-        '<div foo="Foo" baz="Baz" bar="Bar"></div>',
-        '<div bar="Bar" foo="Foo" baz="Baz"></div>',
-      ]);
     });
 
     test('renders multiple bound attributes without quotes', () => {
-      render(
-        html`<div foo=${'Foo'} bar=${'Bar'} baz=${'Baz'}></div>`,
-        container
-      );
-      assert.oneOf(stripExpressionComments(container.innerHTML), [
+      assertRender(html`<div foo=${'Foo'} bar=${'Bar'} baz=${'Baz'}></div>`, [
         '<div foo="Foo" bar="Bar" baz="Baz"></div>',
         '<div foo="Foo" baz="Baz" bar="Bar"></div>',
         '<div bar="Bar" foo="Foo" baz="Baz"></div>',
@@ -1011,10 +1002,7 @@ suite('lit-html', () => {
 
     test('renders undefined in interpolated attributes', () => {
       render(html`<div attribute="it's ${undefined}"></div>`, container);
-      assert.equal(
-        stripExpressionComments(container.innerHTML),
-        '<div attribute="it\'s "></div>'
-      );
+      assertContent('<div attribute="it\'s "></div>');
     });
 
     test('renders undefined in attributes', () => {
@@ -1077,20 +1065,12 @@ suite('lit-html', () => {
     test('noChange works', () => {
       const go = (v: any) => render(html`<div foo=${v}></div>`, container);
       go('A');
-      assert.equal(
-        stripExpressionComments(container.innerHTML),
-        '<div foo="A"></div>',
-        'A'
-      );
+      assertContent('<div foo="A"></div>', 'A');
       const observer = new MutationObserver(() => {});
       observer.observe(container, {attributes: true, subtree: true});
 
       go(noChange);
-      assert.equal(
-        stripExpressionComments(container.innerHTML),
-        '<div foo="A"></div>',
-        'B'
-      );
+      assertContent('<div foo="A"></div>', 'B');
       assert.isEmpty(observer.takeRecords());
     });
 
@@ -1099,24 +1079,12 @@ suite('lit-html', () => {
         render(html`<div foo="${a}:${b}"></div>`, container);
 
       go('A', noChange);
-      assert.equal(
-        stripExpressionComments(container.innerHTML),
-        '<div foo="A:"></div>',
-        'A'
-      );
+      assertContent('<div foo="A:"></div>', 'A');
 
       go('A', 'B');
-      assert.equal(
-        stripExpressionComments(container.innerHTML),
-        '<div foo="A:B"></div>',
-        'A'
-      );
+      assertContent('<div foo="A:B"></div>', 'A');
       go(noChange, 'C');
-      assert.equal(
-        stripExpressionComments(container.innerHTML),
-        '<div foo="A:C"></div>',
-        'B'
-      );
+      assertContent('<div foo="A:C"></div>', 'B');
     });
   });
 
@@ -1252,7 +1220,10 @@ suite('lit-html', () => {
         thisValue = this;
       };
       const host = {} as EventTarget;
-      render(html`<div @click=${listener}></div>`, container, {host});
+      render(html`<div @click=${listener}></div>`, container, {
+        host,
+        useDomParts: domPartsSupported,
+      });
       const div = container.querySelector('div')!;
       div.click();
       if (event === undefined) {
@@ -1280,6 +1251,7 @@ suite('lit-html', () => {
       const host = {} as EventTarget;
       render(html`<div @click=${listener}></div>`, container, {
         host,
+        useDomParts: domPartsSupported,
       });
       const div = container.querySelector('div')!;
       div.click();
@@ -1445,15 +1417,18 @@ suite('lit-html', () => {
 
       render(t(), container);
       assertContent('<div>aaa</div>');
-      const text = container.querySelector('div')!;
-      assert.equal(text.textContent, 'aaa');
+      const div = container.querySelector('div')!;
+      assert.equal(div.textContent, 'aaa');
 
       // Set textContent manually (without disturbing the part marker node).
       // Since lit-html doesn't dirty check against actual DOM, but again
       // previous part values, this modification should persist through the
       // next render with the same value.
-      text.lastChild!.textContent = 'bbb';
-      assert.equal(text.textContent, 'bbb');
+      const litWrittenNode = [...div.childNodes].find((n) => {
+        return n.nodeType === Node.TEXT_NODE && (n as Text).data === 'aaa';
+      })!;
+      litWrittenNode.textContent = 'bbb';
+      assert.equal(div.textContent, 'bbb');
       assertContent('<div>bbb</div>');
 
       // Re-render with the same content, should be a no-op
@@ -1462,7 +1437,7 @@ suite('lit-html', () => {
       const text2 = container.querySelector('div')!;
 
       // The next node should be the same too
-      assert.strictEqual(text, text2);
+      assert.strictEqual(div, text2);
     });
 
     test('dirty checks node values', async () => {
@@ -1603,7 +1578,7 @@ suite('lit-html', () => {
     );
   });
 
-  suite('compiled', () => {
+  compiledSuite('compiled', () => {
     const branding_tag = (s: TemplateStringsArray) => s;
 
     test('only text', () => {
@@ -1729,9 +1704,8 @@ suite('lit-html', () => {
           }
         }
       );
-      render(html`<div>${testDirective('test')}</div>`, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
+      assertRender(
+        html`<div>${testDirective('test')}</div>`,
         '<div>test</div>'
       );
       assert.equal(partInfo!.type, PartType.CHILD);
@@ -1867,6 +1841,7 @@ suite('lit-html', () => {
       });
 
       test(`part's parentNode is correct when rendered into a document fragment`, async () => {
+        debugger;
         const fragment = document.createDocumentFragment();
         (fragment as unknown as {id: string}).id = 'fragment';
         const makeTemplate = () => html`${checkPart('fragment')}`;
@@ -1916,30 +1891,14 @@ suite('lit-html', () => {
 
     test('renders directives on AttributeParts', () => {
       const go = () => html`<div foo=${count('A')}></div>`;
-      render(go(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div foo="A:1"></div>'
-      );
-      render(go(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div foo="A:2"></div>'
-      );
+      assertRender(go(), '<div foo="A:1"></div>');
+      assertRender(go(), '<div foo="A:2"></div>');
     });
 
     test('renders multiple directives on AttributeParts', () => {
       const go = () => html`<div foo="a:${count('A')}:b:${count('B')}"></div>`;
-      render(go(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div foo="a:A:1:b:B:1"></div>'
-      );
-      render(go(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div foo="a:A:2:b:B:2"></div>'
-      );
+      assertRender(go(), '<div foo="a:A:1:b:B:1"></div>');
+      assertRender(go(), '<div foo="a:A:2:b:B:2"></div>');
     });
 
     test('PartInfo includes metadata for directive in AttributeParts', () => {
@@ -1955,9 +1914,8 @@ suite('lit-html', () => {
           }
         }
       );
-      render(html`<div title="a ${testDirective(1)} b"></div>`, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
+      assertRender(
+        html`<div title="a ${testDirective(1)} b"></div>`,
         '<div title="a 1 b"></div>'
       );
       if (partInfo!.type !== PartType.ATTRIBUTE) {
@@ -1969,9 +1927,8 @@ suite('lit-html', () => {
     });
 
     test('renders directives on PropertyParts', () => {
-      render(html`<div .foo=${count('A')}></div>`, container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
-      assert.strictEqual((container.firstElementChild as any).foo, 'A:1');
+      assertRender(html`<div .foo=${count('A')}></div>`, '<div></div>');
+      assert.strictEqual((container.querySelector('div') as any).foo, 'A:1');
     });
 
     test('PartInfo includes metadata for directive in PropertyParts', () => {
@@ -1987,9 +1944,8 @@ suite('lit-html', () => {
           }
         }
       );
-      render(html`<div .title="a ${testDirective(1)} b"></div>`, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
+      assertRender(
+        html`<div .title="a ${testDirective(1)} b"></div>`,
         '<div title="a 1 b"></div>'
       );
       if (partInfo!.type !== PartType.PROPERTY) {
@@ -2013,8 +1969,7 @@ suite('lit-html', () => {
       );
       const template = (value: string) =>
         html`<div @click=${handle(value)}></div>`;
-      render(template('A'), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertRender(template('A'), '<div></div>');
       (container.firstElementChild as HTMLDivElement).click();
       assert.strictEqual((container.firstElementChild as any).__clicked, 'A:1');
       (container.firstElementChild as HTMLDivElement).click();
@@ -2120,7 +2075,7 @@ suite('lit-html', () => {
         });
       });
 
-      test('Expressions inside template throw in dev mode', () => {
+      skipIfDomParts('Expressions inside template throw in dev mode', () => {
         // top level
         assert.throws(() => {
           render(html`<template>${'test'}</template>`, container);
@@ -2170,61 +2125,89 @@ suite('lit-html', () => {
         );
       });
 
-      test('Expressions inside nested templates throw in dev mode', () => {
-        // top level
-        assert.throws(() => {
-          render(
-            html`<template><template>${'test'}</template></template>`,
-            container
+      skipIfDomParts(
+        'Expressions inside nested templates throw in dev mode',
+        () => {
+          // top level
+          assert.throws(
+            () => {
+              render(
+                html`<template><template>${'test'}</template></template>`,
+                container
+              );
+            },
+            undefined,
+            undefined,
+            'top level'
           );
-        });
 
-        // inside template result
-        assert.throws(() => {
-          render(
-            html`<template><div><template>${'test'}</template></template></div>`,
-            container
+          // inside template result
+          assert.throws(
+            () => {
+              render(
+                html`<template><div><template>${'test'}</template></template></div>`,
+                container
+              );
+            },
+            undefined,
+            undefined,
+            'inside template result'
           );
-        });
 
-        // child part deep inside
-        assert.throws(() => {
-          render(
-            html`<template><template>
+          // child part deep inside
+          assert.throws(
+            () => {
+              render(
+                html`<template><template>
             <div><div><div><div>${'test'}</div></div></div></div>
             </template></template>`,
-            container
+                container
+              );
+            },
+            undefined,
+            undefined,
+            'child part deep inside'
           );
-        });
 
-        // attr part deep inside
-        assert.throws(() => {
-          render(
-            html`<template><template>
+          // attr part deep inside
+          assert.throws(
+            () => {
+              render(
+                html`<template><template>
             <div><div><div><div class="${'test'}"></div></div></div></div>
             </template></template>`,
-            container
+                container
+              );
+            },
+            undefined,
+            undefined,
+            'attr part deep inside'
           );
-        });
 
-        // attr part deep inside
-        assert.throws(() => {
-          render(
-            html`<template><template>
+          // attr part deep inside
+          assert.throws(
+            () => {
+              render(
+                html`<template><template>
             <div><div><div><div ${'test'}></div></div></div></div>
             </template></template>`,
-            container
+                container
+              );
+            },
+            undefined,
+            undefined,
+            'attr part deep inside 2'
           );
-        });
 
-        // attr on element a-ok
-        render(
-          html`<template id=${'test'}><template>
+          // attr on element a-ok
+          render(
+            html`<template id=${'test'}><template>
           <div>Static content is ok</div>
             </template></template>`,
-          container
-        );
-      });
+            container
+          );
+        }
+      );
     }
 
     test('directives have access to renderOptions', () => {
@@ -2248,7 +2231,7 @@ suite('lit-html', () => {
       render(
         html`<div attr=${hostDirective('attr')}>${hostDirective('node')}</div>`,
         container,
-        {host: hostEl}
+        {host: hostEl, useDomParts: domPartsSupported}
       );
       assertContent('<div attr="host:attr">host:node</div>');
     });
@@ -2438,7 +2421,7 @@ suite('lit-html', () => {
       assertContent(`<div>dd</div>`);
       // Eneuque an async clear of the TemplateResult+AsyncDirective
       promise = Promise.resolve(nothing);
-      assertRender(template(promise), `<div>dd</div>`);
+      assertRender(template(promise), `<div>dd</div>`, undefined);
       assert.deepEqual(log, []);
       // Disconnect the tree before the clear is committed
       part.setConnected(false);
@@ -3024,18 +3007,10 @@ suite('lit-html', () => {
 
     test('sanitizes text content when the text is alone', () => {
       const getTemplate = (value: unknown) => html`<div>${value}</div>`;
-      render(getTemplate('foo'), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>safeString</div>'
-      );
+      assertRender(getTemplate('foo'), '<div>safeString</div>');
 
       const safeFoo = new FakeSanitizedWrapper('foo');
-      render(getTemplate(safeFoo), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>foo</div>'
-      );
+      assertRender(getTemplate(safeFoo), '<div>foo</div>');
 
       assert.deepEqual(sanitizerCalls, [
         {
@@ -3050,19 +3025,11 @@ suite('lit-html', () => {
     test('sanitizes text content when the text is interpolated', () => {
       const getTemplate = (value: unknown) =>
         html`<div>hello ${value} world</div>`;
-      render(getTemplate('big'), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>hello safeString world</div>'
-      );
+      assertRender(getTemplate('big'), '<div>hello safeString world</div>');
 
       const safeBig = new FakeSanitizedWrapper('big');
 
-      render(getTemplate(safeBig), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div>hello big world</div>'
-      );
+      assertRender(getTemplate(safeBig), '<div>hello big world</div>');
 
       assert.deepEqual(sanitizerCalls, [
         {
@@ -3076,18 +3043,10 @@ suite('lit-html', () => {
 
     test('sanitizes full attribute values', () => {
       const getTemplate = (value: unknown) => html`<div attrib=${value}></div>`;
-      render(getTemplate('bad'), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div attrib="safeString"></div>'
-      );
+      assertRender(getTemplate('bad'), '<div attrib="safeString"></div>');
 
       const safe = new FakeSanitizedWrapper('good');
-      render(getTemplate(safe), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<div attrib="good"></div>'
-      );
+      assertRender(getTemplate(safe), '<div attrib="good"></div>');
 
       assert.deepEqual(sanitizerCalls, [
         {
@@ -3100,9 +3059,8 @@ suite('lit-html', () => {
     });
 
     test('sanitizes concatenated attributes after concatenation', () => {
-      render(html`<div attrib="hello ${'big'} world"></div>`, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
+      assertRender(
+        html`<div attrib="hello ${'big'} world"></div>`,
         '<div attrib="safeString"></div>'
       );
 
@@ -3118,13 +3076,11 @@ suite('lit-html', () => {
 
     test('sanitizes properties', () => {
       const getTemplate = (value: unknown) => html`<div .foo=${value}></div>`;
-      render(getTemplate('bad'), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertRender(getTemplate('bad'), '<div></div>');
       assert.equal((container.querySelector('div')! as any).foo, 'safeString');
 
       const safe = new FakeSanitizedWrapper('good');
-      render(getTemplate(safe), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+      assertRender(getTemplate(safe), '<div></div>');
       assert.equal((container.querySelector('div')! as any).foo, 'good');
 
       assert.deepEqual(sanitizerCalls, [
@@ -3146,7 +3102,7 @@ suite('lit-html', () => {
     } catch {
       threwError = true;
     }
-    assert.equal(stripExpressionMarkers(container.innerHTML), '');
+    assertContent('');
     assert.isTrue(
       threwError,
       `Expected an error when rendering a spoofed template result`

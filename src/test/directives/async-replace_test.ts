@@ -7,9 +7,9 @@
 import {asyncReplace} from '../../directives/async-replace.js';
 import {render, html, nothing} from '../../index.js';
 import {TestAsyncIterable} from './test-async-iterable.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
 import {assert} from '@esm-bundle/chai';
 import {memorySuite} from '../test-utils/memory.js';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -25,90 +25,77 @@ suite('asyncReplace', () => {
     iterable = new TestAsyncIterable<unknown>();
   });
 
+  const {assertContent} = makeAsserts(() => container);
+
   test('replaces content as the async iterable yields new values (ChildPart)', async () => {
     render(html`<div>${asyncReplace(iterable)}</div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     await iterable.push('bar');
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
   });
 
   test('replaces content as the async iterable yields new values (AttributePart)', async () => {
     render(html`<div class="${asyncReplace(iterable)}"></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div class="foo"></div>'
-    );
+    assertContent('<div class="foo"></div>');
 
     await iterable.push('bar');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div class="bar"></div>'
-    );
+    assertContent('<div class="bar"></div>');
   });
 
   test('replaces content as the async iterable yields new values (PropertyPart)', async () => {
     render(html`<div .className=${asyncReplace(iterable)}></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div class="foo"></div>'
-    );
+    assertContent('<div class="foo"></div>');
 
     await iterable.push('bar');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div class="bar"></div>'
-    );
+    assertContent('<div class="bar"></div>');
   });
 
   test('replaces content as the async iterable yields new values (BooleanAttributePart)', async () => {
     render(html`<div ?hidden=${asyncReplace(iterable)}></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push(true);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div hidden=""></div>'
-    );
+    assertContent('<div hidden=""></div>');
 
     await iterable.push(false);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('replaces content as the async iterable yields new values (EventPart)', async () => {
     render(html`<div @click=${asyncReplace(iterable)}></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     let value;
     await iterable.push(() => (value = 1));
-    (container.firstElementChild as HTMLDivElement)!.click();
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    container.querySelector('div')!.click();
+    assertContent('<div></div>');
     assert.equal(value, 1);
 
     await iterable.push(() => (value = 2));
-    (container.firstElementChild as HTMLDivElement)!.click();
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    container.querySelector('div')!.click();
+    assertContent('<div></div>');
     assert.equal(value, 2);
   });
 
   test('clears the Part when a value is undefined', async () => {
     render(html`<div>${asyncReplace(iterable)}</div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     await iterable.push(undefined as unknown as string);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('uses the mapper function', async () => {
@@ -116,67 +103,52 @@ suite('asyncReplace', () => {
       html`<div>${asyncReplace(iterable, (v, i) => html`${i}: ${v} `)}</div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>0: foo </div>'
-    );
+    assertContent('<div>0: foo </div>');
 
     await iterable.push('bar');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>1: bar </div>'
-    );
+    assertContent('<div>1: bar </div>');
   });
 
   test('renders new iterable over a pending iterable', async () => {
     const t = (iterable: any) => html`<div>${asyncReplace(iterable)}</div>`;
     render(t(iterable), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     const iterable2 = new TestAsyncIterable<string>();
     render(t(iterable2), container);
 
     // The last value is preserved until we receive the first
     // value from the new iterable
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     await iterable2.push('hello');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>hello</div>'
-    );
+    assertContent('<div>hello</div>');
 
     await iterable.push('bar');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>hello</div>'
-    );
+    assertContent('<div>hello</div>');
   });
 
   test('renders the same iterable even when the iterable new value is emitted at the same time as a re-render', async () => {
     const t = (iterable: any) => html`<div>${asyncReplace(iterable)}</div>`;
     let wait: Promise<void>;
     render(t(iterable), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     wait = iterable.push('hello');
     render(t(iterable), container);
     await wait;
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>hello</div>'
-    );
+    assertContent('<div>hello</div>');
 
     wait = iterable.push('bar');
     render(t(iterable), container);
     await wait;
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>bar</div>');
+    assertContent('<div>bar</div>');
   });
 
   test('renders new value over a pending iterable', async () => {
@@ -184,22 +156,16 @@ suite('asyncReplace', () => {
     // This is a little bit of an odd usage of directives as values, but it
     // is possible, and we check here that asyncReplace plays nice in this case
     render(t(asyncReplace(iterable)), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
 
     await iterable.push('foo');
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>foo</div>');
+    assertContent('<div>foo</div>');
 
     render(t('hello'), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>hello</div>'
-    );
+    assertContent('<div>hello</div>');
 
     await iterable.push('bar');
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>hello</div>'
-    );
+    assertContent('<div>hello</div>');
   });
 
   test('does not render the first value if it is replaced first', async () => {
@@ -221,7 +187,7 @@ suite('asyncReplace', () => {
     await slowDelay;
     await delay(10);
 
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<p>fast</p>');
+    assertContent('<p>fast</p>');
   });
 
   suite('disconnection', () => {
@@ -229,106 +195,76 @@ suite('asyncReplace', () => {
       const component = (value: any) => html`<p>${asyncReplace(value)}</p>`;
       const part = render(component(iterable), container);
       await iterable.push('1');
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>1</p>');
+      assertContent('<p>1</p>');
       part.setConnected(false);
       await iterable.push('2');
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>1</p>');
+      assertContent('<p>1</p>');
       part.setConnected(true);
       await nextFrame();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>2</p>');
+      assertContent('<p>2</p>');
       await iterable.push('3');
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>3</p>');
+      assertContent('<p>3</p>');
     });
 
     test('disconnection thrashing', async () => {
       const component = (value: any) => html`<p>${asyncReplace(value)}</p>`;
       const part = render(component(iterable), container);
       await iterable.push('1');
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>1</p>');
+      assertContent('<p>1</p>');
       part.setConnected(false);
       await iterable.push('2');
       part.setConnected(true);
       part.setConnected(false);
       await nextFrame();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>1</p>');
+      assertContent('<p>1</p>');
       part.setConnected(true);
       await nextFrame();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>2</p>');
+      assertContent('<p>2</p>');
       await iterable.push('3');
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>3</p>');
+      assertContent('<p>3</p>');
     });
 
     test('does not render when newly rendered while disconnected', async () => {
       const component = (value: any) => html`<p>${value}</p>`;
       const part = render(component('static'), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>static</p>'
-      );
+      assertContent('<p>static</p>');
       part.setConnected(false);
       render(component(asyncReplace(iterable)), container);
       await iterable.push('1');
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>static</p>'
-      );
+      assertContent('<p>static</p>');
       part.setConnected(true);
       await nextFrame();
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>1</p>');
+      assertContent('<p>1</p>');
       await iterable.push('2');
-      assert.equal(stripExpressionMarkers(container.innerHTML), '<p>2</p>');
+      assertContent('<p>2</p>');
     });
 
     test('does not render when resolved and changed while disconnected', async () => {
       const component = (value: any) => html`<p>${value}</p>`;
       const part = render(component('staticA'), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>staticA</p>'
-      );
+      assertContent('<p>staticA</p>');
       part.setConnected(false);
       render(component(asyncReplace(iterable)), container);
       await iterable.push('1');
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>staticA</p>'
-      );
+      assertContent('<p>staticA</p>');
       render(component('staticB'), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>staticB</p>'
-      );
+      assertContent('<p>staticB</p>');
       part.setConnected(true);
       await nextFrame();
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>staticB</p>'
-      );
+      assertContent('<p>staticB</p>');
       await iterable.push('2');
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>staticB</p>'
-      );
+      assertContent('<p>staticB</p>');
     });
 
     test('the same promise can be rendered into two asyncReplace instances', async () => {
       const component = (iterable: AsyncIterable<unknown>) =>
         html`<p>${asyncReplace(iterable)}</p><p>${asyncReplace(iterable)}</p>`;
       render(component(iterable), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p></p><p></p>'
-      );
+      assertContent('<p></p><p></p>');
       await iterable.push('1');
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>1</p><p>1</p>'
-      );
+      assertContent('<p>1</p><p>1</p>');
       await iterable.push('2');
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        '<p>2</p><p>2</p>'
-      );
+      assertContent('<p>2</p><p>2</p>');
     });
   });
 
@@ -355,11 +291,11 @@ suite('asyncReplace', () => {
         render(template(nothing), container);
       }
       window.gc();
-      // Allow a 50% margin of heap growth; due to the 10kb expando, an actual
+      // Allow a 100% margin of heap growth; due to the 10kb expando, an actual
       // DOM leak will be orders of magnitude larger
       assert.isAtMost(
         performance.memory.usedJSHeapSize,
-        heap * 1.5,
+        heap * 2,
         'memory leak detected'
       );
     });

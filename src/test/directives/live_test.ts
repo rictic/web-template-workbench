@@ -53,9 +53,9 @@ suite('live directive', () => {
 
     test('does not set a non-changed property', () => {
       const go = (x: string) =>
-        render(html`<live-tester .x="${live(x)}"></live-tester>}`, container);
+        render(html`<live-tester .x="${live(x)}"></live-tester>`, container);
       go('a');
-      const el = container.firstElementChild as LiveTester;
+      const el = container.querySelector('live-tester') as LiveTester;
       assert.equal(el.x, 'a');
       assert.equal(el._setCount, 1);
       go('a');

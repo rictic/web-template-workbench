@@ -5,9 +5,9 @@
  */
 
 import {ifDefined} from '../../directives/if-defined.js';
-import {html, render} from '../../index.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
+import {render, html} from '../../index.js';
 import {assert} from '@esm-bundle/chai';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 suite('ifDefined directive', () => {
   let container: HTMLDivElement;
@@ -16,54 +16,50 @@ suite('ifDefined directive', () => {
     container = document.createElement('div');
   });
 
+  const {assertContent} = makeAsserts(() => container);
+
   test('sets an attribute with a defined value', () => {
     render(html`<div foo="${ifDefined('a')}"></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div foo="a"></div>'
-    );
+    assertContent('<div foo="a"></div>');
   });
 
   test('removes an attribute with an undefined value', () => {
     render(html`<div foo="${ifDefined(undefined)}"></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('sets an attribute with a previously undefined value', () => {
     render(html`<div foo="${ifDefined(undefined)}"></div>`, container);
     render(html`<div foo="${ifDefined('a')}"></div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div foo="a"></div>'
-    );
+    assertContent('<div foo="a"></div>');
   });
 
   test('removes an attribute with previously defined value', () => {
     render(html`<div foo="${ifDefined('a')}"></div>`, container);
     render(html`<div foo="${ifDefined(undefined)}"></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('removes an attribute with previous value set outside ifDefined', () => {
     const go = (v: unknown) => render(html`<div foo="${v}"></div>`, container);
     go('a');
     go(ifDefined(undefined));
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('passes a defined value to a ChildPart', () => {
     render(html`<div>${ifDefined('a')}</div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>a</div>');
+    assertContent('<div>a</div>');
   });
 
   test('passes an undefined value to a ChildPart', () => {
     render(html`<div>${ifDefined(undefined)}</div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('removes an attribute with an interpolated undefined value', () => {
     render(html`<div foo="it's: ${ifDefined(undefined)}"></div>`, container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('removes an attribute with multiple undefined values', () => {
@@ -73,7 +69,7 @@ suite('ifDefined directive', () => {
       ></div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('removes an attribute with one defined then one undefined value', () => {
@@ -83,7 +79,7 @@ suite('ifDefined directive', () => {
       ></div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('removes an attribute with one undefined then one defined value', () => {
@@ -93,7 +89,7 @@ suite('ifDefined directive', () => {
       ></div>`,
       container
     );
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
   });
 
   test('only sets the attribute when the value changed', async () => {
@@ -108,18 +104,12 @@ suite('ifDefined directive', () => {
     const el = container.firstElementChild!;
     observer.observe(el, {attributes: true});
 
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div foo="1a"></div>'
-    );
+    assertContent('<div foo="1a"></div>');
     assert.equal(setCount, 0);
 
     go('a');
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div foo="1a"></div>'
-    );
+    assertContent('<div foo="1a"></div>');
     assert.equal(setCount, 0);
   });
 
@@ -129,24 +119,21 @@ suite('ifDefined directive', () => {
       render(html`<div foo="1${ifDefined(value)}"></div>`, container);
 
     go('a');
-    const el = container.firstElementChild!;
+    const el = container.querySelector('div')!;
     const origRemoveAttribute = el.removeAttribute.bind(el);
     el.removeAttribute = (name: string) => {
       removeCount++;
       origRemoveAttribute(name);
     };
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div foo="1a"></div>'
-    );
+    assertContent('<div foo="1a"></div>');
     assert.equal(removeCount, 0);
 
     go(undefined);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     assert.equal(removeCount, 1, 'A');
 
     go(undefined);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div></div>');
+    assertContent('<div></div>');
     assert.equal(removeCount, 1, 'B');
   });
 
@@ -162,12 +149,12 @@ suite('ifDefined directive', () => {
     const el = container.firstElementChild!;
     observer.observe(el, {characterData: true});
 
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>a</div>');
+    assertContent('<div>a</div>');
     assert.equal(setCount, 0);
 
     go('a');
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>a</div>');
+    assertContent('<div>a</div>');
     assert.equal(setCount, 0);
   });
 });

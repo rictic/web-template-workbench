@@ -11,7 +11,6 @@ import {
   ElementPart,
   EventPart,
   PropertyPart,
-  TemplateInstance,
   isIterable,
   resolveDirective,
 } from './template.js';
@@ -53,7 +52,7 @@ export const _$LH = {
   _HTML_RESULT: HTML_RESULT,
   _getTemplateHtml: getTemplateHtml,
   // Used in tests and private-ssr-support
-  _TemplateInstance: TemplateInstance,
+  // _TemplateInstance: TemplateInstance,
   _isIterable: isIterable,
   _resolveDirective: resolveDirective,
   _ChildPart: ChildPart,

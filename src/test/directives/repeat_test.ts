@@ -6,8 +6,8 @@
 
 import {repeat} from '../../directives/repeat.js';
 import {render, html} from '../../index.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
 import {assert} from '@esm-bundle/chai';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 function assertItemIdentity(
   oldChildren: HTMLElement[],
@@ -28,19 +28,18 @@ suite('repeat', () => {
     container = document.createElement('div');
   });
 
+  const {assertContent} = makeAsserts(() => container);
+
   suite('keyed', () => {
     test('renders a list', () => {
       // prettier-ignore
       const r = html`${repeat([1, 2, 3], (i) => i, (i: number) => html`
             <li>item: ${i}</li>`)}`;
       render(r, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 1</li>
             <li>item: 2</li>
-            <li>item: 3</li>`
-      );
+            <li>item: 3</li>`);
     });
 
     test('renders a list twice', () => {
@@ -50,23 +49,17 @@ suite('repeat', () => {
             <li>item: ${i}</li>`)}`;
 
       render(t([0, 1, 2]), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       render(t([0, 1, 2]), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, [0, 1, 2]);
@@ -78,24 +71,18 @@ suite('repeat', () => {
       const t = () => html`${repeat(items, (i) => i, (i: number) => html`
             <li>item: ${i}</li>`)}`;
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       items = [2, 1, 0];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 2</li>
             <li>item: 1</li>
-            <li>item: 0</li>`
-      );
+            <li>item: 0</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -107,29 +94,23 @@ suite('repeat', () => {
       const t = () => html`${repeat(items, (i) => i, (i: number) => html`
             <li>item: ${i}</li>`)}`;
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 3</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       items = [2, 0, 3, 5, 1, 4];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 2</li>
             <li>item: 0</li>
             <li>item: 3</li>
             <li>item: 5</li>
             <li>item: 1</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -143,28 +124,22 @@ suite('repeat', () => {
 
       let items = [0, 1, 2, 3, 4];
       render(t(items), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 3</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       items = [0, 4, 2, 3, 1];
       render(t(items), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 4</li>
             <li>item: 2</li>
             <li>item: 3</li>
-            <li>item: 1</li>`
-      );
+            <li>item: 1</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -180,24 +155,18 @@ suite('repeat', () => {
       render(t(items), container);
       const children1 = Array.from(container.querySelectorAll('li'));
 
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
 
       items = [2, 1, 0];
       render(t(items), container);
 
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 2</li>
             <li>item: 1</li>
-            <li>item: 0</li>`
-      );
+            <li>item: 0</li>`);
 
       render(t(items), container);
       const children2 = Array.from(container.querySelectorAll('li'));
@@ -215,14 +184,11 @@ suite('repeat', () => {
 
       items = [-1, 0, 1, 2];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: -1</li>
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -239,14 +205,11 @@ suite('repeat', () => {
 
       items = [0, 1, 2, 3];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 2</li>
-            <li>item: 3</li>`
-      );
+            <li>item: 3</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -261,7 +224,7 @@ suite('repeat', () => {
       render(t(), container);
       items = [];
       render(t(), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), ``);
+      assertContent(``);
     });
 
     test('can remove the first item', () => {
@@ -271,23 +234,17 @@ suite('repeat', () => {
             <li>item: ${i}</li>`)}`;
 
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       items = [1, 2];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -304,12 +261,9 @@ suite('repeat', () => {
 
       items = [0, 1];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
-            <li>item: 1</li>`
-      );
+            <li>item: 1</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -326,12 +280,9 @@ suite('repeat', () => {
 
       items = [0, 2];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -348,13 +299,10 @@ suite('repeat', () => {
 
       items = [0, 3, 6];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 3</li>
-            <li>item: 6</li>`
-      );
+            <li>item: 6</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -371,17 +319,14 @@ suite('repeat', () => {
 
       items = [0, 4, 5, 3, 2, 1, 6];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 4</li>
             <li>item: 5</li>
             <li>item: 3</li>
             <li>item: 2</li>
             <li>item: 1</li>
-            <li>item: 6</li>`
-      );
+            <li>item: 6</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       assertItemIdentity(children1, children2, items);
@@ -398,17 +343,14 @@ suite('repeat', () => {
 
       items = [0, 5, 1, 2, 3, 6, 4];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 5</li>
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 3</li>
             <li>item: 6</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
       assertItemIdentity(children1, children2, items);
     });
@@ -420,13 +362,10 @@ suite('repeat', () => {
       const r = html`${repeat([0, 1, 2], (i: number) => html`
             <li>item: ${i}</li>`)}`;
       render(r, container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
     });
 
     test('shuffles a list', () => {
@@ -435,23 +374,17 @@ suite('repeat', () => {
       const t = () => html`${repeat(items, (i: number) => html`
             <li>item: ${i}</li>`)}`;
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
 
       items = [2, 1, 0];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 2</li>
             <li>item: 1</li>
-            <li>item: 0</li>`
-      );
+            <li>item: 0</li>`);
     });
 
     test('can replace with an empty list', () => {
@@ -463,7 +396,7 @@ suite('repeat', () => {
 
       items = [];
       render(t(), container);
-      assert.equal(stripExpressionMarkers(container.innerHTML), ``);
+      assertContent(``);
     });
 
     test('re-renders a list', () => {
@@ -474,15 +407,12 @@ suite('repeat', () => {
 
       render(t(), container);
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 3</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
     });
 
     test('render objects as items with mutable update', () => {
@@ -491,24 +421,18 @@ suite('repeat', () => {
       const t = () => html`${repeat(items, (i) => html`
             <li>item: ${i.text}</li>`)}`;
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       items[1].text += '*';
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1*</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
       assertItemIdentity(children1, children2, [0, 1, 2]);
     });
@@ -519,24 +443,18 @@ suite('repeat', () => {
       const t = () => html`${repeat(items, (i) => html`
             <li>item: ${i.text}</li>`)}`;
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children1 = Array.from(container.querySelectorAll('li'));
 
       items = [items[0], {text: items[1].text + '*'}, items[2]];
       render(t(), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1*</li>
-            <li>item: 2</li>`
-      );
+            <li>item: 2</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
       assertItemIdentity(children1, children2, [0, 1, 2]);
     });
@@ -549,9 +467,9 @@ suite('repeat', () => {
   //           html`${repeat(items, (i: number) => until(Promise.resolve(html`
   //             <li>promised: ${i}</li>`)))}`;
   //       render(t(), container);
-  //       assert.equal(stripExpressionMarkers(container.innerHTML), '');
+  //       assertContent( '');
   //       await Promise.resolve();
-  //       assert.equal(stripExpressionMarkers(container.innerHTML), `
+  //       assertContent( `
   //             <li>promised: 0</li>
   //             <li>promised: 1</li>
   //             <li>promised: 2</li>`);
@@ -568,12 +486,12 @@ suite('repeat', () => {
   //                   html`
   //             <li>wait: ${i}</li>`))}`;
   //       render(t(), container);
-  //       assert.equal(stripExpressionMarkers(container.innerHTML), `
+  //       assertContent( `
   //             <li>wait: 0</li>
   //             <li>wait: 1</li>
   //             <li>wait: 2</li>`);
   //       await Promise.resolve();
-  //       assert.equal(stripExpressionMarkers(container.innerHTML), `
+  //       assertContent( `
   //             <li>guarded: 0</li>
   //             <li>guarded: 1</li>
   //             <li>guarded: 2</li>`);
@@ -594,16 +512,13 @@ suite('repeat', () => {
             <li>item: ${i}</li>`)}`;
 
       render(t([0, 1, 2, 2, 3, 4]), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 2</li>
             <li>item: 3</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
     });
 
     test('update contiguous duplicate keys (no order change)', () => {
@@ -618,16 +533,13 @@ suite('repeat', () => {
 
       items = [0, 1, 2, 2, 3, 4];
       render(t(items), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 2</li>
             <li>item: 3</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       //   Parts for these dup'ed keys are maintained v  v
@@ -641,17 +553,14 @@ suite('repeat', () => {
             <li>item: ${i}</li>`)}`;
 
       render(t([0, 1, 42, 2, 42, 3, 4]), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 0</li>
             <li>item: 1</li>
             <li>item: 42</li>
             <li>item: 2</li>
             <li>item: 42</li>
             <li>item: 3</li>
-            <li>item: 4</li>`
-      );
+            <li>item: 4</li>`);
     });
 
     test('update duplicate keys with skip', () => {
@@ -666,17 +575,14 @@ suite('repeat', () => {
 
       items = [1, 2, 0, 5, 2, 4, 3];
       render(t(items), container);
-      assert.equal(
-        stripExpressionMarkers(container.innerHTML),
-        `
+      assertContent(`
             <li>item: 1</li>
             <li>item: 2</li>
             <li>item: 0</li>
             <li>item: 5</li>
             <li>item: 2</li>
             <li>item: 4</li>
-            <li>item: 3</li>`
-      );
+            <li>item: 3</li>`);
       const children2 = Array.from(container.querySelectorAll('li'));
 
       // Part for this duplicate key was re-created v

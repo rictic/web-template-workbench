@@ -6,8 +6,8 @@
 
 import {unsafeHTML} from '../../directives/unsafe-html.js';
 import {render, html, nothing, noChange} from '../../index.js';
-import {stripExpressionMarkers} from '@lit-labs/testing';
 import {assert} from '@esm-bundle/chai';
+import {makeAsserts} from '../test-utils/assert-render.js';
 
 suite('unsafeHTML directive', () => {
   let container: HTMLElement;
@@ -16,54 +16,38 @@ suite('unsafeHTML directive', () => {
     container = document.createElement('div');
   });
 
+  const {assertContent} = makeAsserts(() => container);
+
   test('renders HTML', () => {
     render(
       html`<div>before${unsafeHTML('<span>inner</span>after')}</div>`,
       container
     );
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>before<span>inner</span>after</div>'
-    );
+    assertContent('<div>before<span>inner</span>after</div>');
   });
 
   test('rendering `nothing` renders empty string to content', () => {
     render(html`<div>before${unsafeHTML(nothing)}after</div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>beforeafter</div>'
-    );
+    assertContent('<div>beforeafter</div>');
   });
 
   test('rendering `noChange` does not change the previous content', () => {
     const template = (v: string | typeof noChange) =>
       html`<div>before${unsafeHTML(v)}after</div>`;
     render(template('<p>Hi</p>'), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>before<p>Hi</p>after</div>'
-    );
+    assertContent('<div>before<p>Hi</p>after</div>');
     render(template(noChange), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>before<p>Hi</p>after</div>'
-    );
+    assertContent('<div>before<p>Hi</p>after</div>');
   });
 
   test('rendering `undefined` renders empty string to content', () => {
     render(html`<div>before${unsafeHTML(undefined)}after</div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>beforeafter</div>'
-    );
+    assertContent('<div>beforeafter</div>');
   });
 
   test('rendering `null` renders empty string to content', () => {
     render(html`<div>before${unsafeHTML(null)}after</div>`, container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>beforeafter</div>'
-    );
+    assertContent('<div>beforeafter</div>');
   });
 
   test('dirty checks primitive values', () => {
@@ -72,27 +56,19 @@ suite('unsafeHTML directive', () => {
 
     // Initial render
     render(t(), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>aaa</div>');
+    assertContent('<div>aaa</div>');
 
     // Modify instance directly. Since lit-html doesn't dirty check against
     // actual DOM, but against previous part values, this modification should
     // persist through the next render if dirty checking works.
     const text = container.querySelector('div')!.childNodes[1] as Text;
     text.textContent = 'bbb';
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>bbb</div>',
-      'A'
-    );
+    assertContent('<div>bbb</div>', 'A');
 
     // Re-render with the same value
     render(t(), container);
 
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div>bbb</div>',
-      'B'
-    );
+    assertContent('<div>bbb</div>', 'B');
     const text2 = container.querySelector('div')!.childNodes[1] as Text;
     assert.strictEqual(text, text2);
   });
@@ -110,20 +86,14 @@ suite('unsafeHTML directive', () => {
 
     // Initial unsafeHTML render
     render(t(unsafeHTML(value)), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><span></span></div>'
-    );
+    assertContent('<div><span></span></div>');
 
     // Re-render with a non-unsafeHTML value
     render(t(primitive), container);
-    assert.equal(stripExpressionMarkers(container.innerHTML), '<div>aaa</div>');
+    assertContent('<div>aaa</div>');
 
     // Re-render with unsafeHTML again
     render(t(unsafeHTML(value)), container);
-    assert.equal(
-      stripExpressionMarkers(container.innerHTML),
-      '<div><span></span></div>'
-    );
+    assertContent('<div><span></span></div>');
   });
 });
