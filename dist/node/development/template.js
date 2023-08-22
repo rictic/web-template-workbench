@@ -22,31 +22,6 @@ const CHILD_PART = 2;
 const ELEMENT_PART = 6;
 const COMMENT_PART = 7;
 /**
- * A sentinel value that signals that a value was handled by a directive and
- * should not be written to the DOM.
- */
-const noChange = Symbol.for('lit-noChange');
-/**
- * A sentinel value that signals a ChildPart to fully clear its content.
- *
- * ```ts
- * const button = html`${
- *  user.isAdmin
- *    ? html`<button>DELETE</button>`
- *    : nothing
- * }`;
- * ```
- *
- * Prefer using `nothing` over other falsy values as it provides a consistent
- * behavior between various expression binding contexts.
- *
- * In child expressions, `undefined`, `null`, `''`, and `nothing` all behave the
- * same and render no nodes. In attribute expressions, `nothing` _removes_ the
- * attribute, while `undefined` and `null` will render an empty string. In
- * property expressions `nothing` becomes `undefined`.
- */
-const nothing = Symbol.for('lit-nothing');
-/**
  * The cache of prepared templates, keyed by the tagged TemplateStringsArray
  * and _not_ accounting for the specific template tag used. This means that
  * template tags cannot be dynamic - the must statically be one of html, svg,
@@ -352,7 +327,7 @@ class ChildPart {
     }
     constructor(startNode, endNode, parent, options) {
         this.type = CHILD_PART;
-        this._$committedValue = nothing;
+        this._$committedValue = '';
         // The following fields will be patched onto ChildParts when required by
         // AsyncDirective
         /** @internal */
@@ -418,13 +393,11 @@ class ChildPart {
             // Non-rendering child values. It's important that these do not render
             // empty text nodes to avoid issues with preventing default <slot>
             // fallback content.
-            if (value === nothing || value == null || value === '') {
-                if (this._$committedValue !== nothing) {
-                    this._$clear();
-                }
-                this._$committedValue = nothing;
+            if (value == null || value === '') {
+                this._$clear();
+                this._$committedValue = '';
             }
-            else if (value !== this._$committedValue && value !== noChange) {
+            else if (value !== this._$committedValue) {
                 this._commitText(value);
             }
             // This property needs to remain unminified.
@@ -462,8 +435,7 @@ class ChildPart {
         // If the committed value is a primitive it means we called _commitText on
         // the previous render, and we know that this._$startNode.nextSibling is a
         // Text node. We can now just replace the text content (.data) of the node.
-        if (this._$committedValue !== nothing &&
-            isPrimitive(this._$committedValue)) {
+        if (isPrimitive(this._$committedValue)) {
             const node = this._$startNode.nextSibling;
             node.data = value;
         }
@@ -587,7 +559,7 @@ class AttributePart {
     constructor(element, name, strings, parent, options) {
         this.type = ATTRIBUTE_PART;
         /** @internal */
-        this._$committedValue = nothing;
+        this._$committedValue = [];
         /** @internal */
         this._$disconnectableChildren = undefined;
         this.element = element;
@@ -599,7 +571,7 @@ class AttributePart {
             this.strings = strings;
         }
         else {
-            this._$committedValue = nothing;
+            this._$committedValue = '';
         }
     }
     /**
@@ -629,9 +601,7 @@ class AttributePart {
         // Whether any of the values has changed, for dirty-checking
         let change = false;
         if (strings === undefined) {
-            change =
-                !isPrimitive(value) ||
-                    (value !== this._$committedValue && value !== noChange);
+            change = !isPrimitive(value) || value !== this._$committedValue;
             if (change) {
                 this._$committedValue = value;
             }
@@ -643,18 +613,9 @@ class AttributePart {
             let i, v;
             for (i = 0; i < strings.length - 1; i++) {
                 v = values[valueIndex + i];
-                if (v === noChange) {
-                    // If the user-provided value is `noChange`, use the previous value
-                    v = this._$committedValue[i];
-                }
                 change ||=
                     !isPrimitive(v) || v !== this._$committedValue[i];
-                if (v === nothing) {
-                    value = nothing;
-                }
-                else if (value !== nothing) {
-                    value += (v ?? '') + strings[i + 1];
-                }
+                value += (v ?? '') + strings[i + 1];
                 // We always record each value, even if one is `nothing`, for future
                 // change detection.
                 this._$committedValue[i] = v;
@@ -666,14 +627,9 @@ class AttributePart {
     }
     /** @internal */
     _commitValue(value) {
-        if (value === nothing) {
-            this.element.removeAttribute(this.name);
-        }
-        else {
-            this.element.setAttribute(this.name, (value ?? ''));
-        }
+        this.element.setAttribute(this.name, (value ?? ''));
     }
 }
 
-export { AttributePart, ChildPart, isIterable, noChange, nothing };
+export { AttributePart, ChildPart, isIterable };
 //# sourceMappingURL=template.js.map
