@@ -20,10 +20,38 @@ Parameters:
 <html>
   <head> </head>
   <body>
+    <div id="gcavailable"></div>
+    <button id="runMany">Run N times</button>
+    <span id="spinner" style="display: none">Running...</span>
+    <div>
+      <div>
+        <label>Runs: <input type="number" id="numTimes" /> </label>
+      </div>
+    </div>
+    <div id="results"></div>
     <script type="module">
       import { update } from "./heavy.js";
-      import { html, render, nothing } from "https://unpkg.com/lit-html?module";
 
+      let numRuns = 100;
+      let running = false;
+      if (!window.gc) {
+        gcavailable.textContent = `
+          window.gc is not available, run with --js-flags="--expose-gc" to get
+          more accurate results.
+        `;
+      }
+      const runManyButton = document.querySelector("#runMany");
+      runManyButton.addEventListener("click", () => {
+        runMany(numRuns);
+      });
+      const numTimesInput = document.querySelector("#numTimes");
+      numTimesInput.value = numRuns;
+      function updateNumTimes() {
+        numRuns = Number(numTimesInput.value);
+        runManyButton.textContent = `Run ${numRuns} times`;
+        main();
+      }
+      numTimesInput.addEventListener("input", updateNumTimes);
       const domParts = {
         name: "DOM Parts",
         options: { useDomParts: true },
@@ -34,12 +62,13 @@ Parameters:
         options: { useDomParts: false },
         times: [],
       };
+      updateNumTimes();
       // ensure that <template>s are created for both versions first,
       // because our DOM Parts template creation code is not optimized yet.
       update(document.createElement("div"), domParts.options);
       update(document.createElement("div"), manual.options);
       function drawConfig(config) {
-        let timesReport = nothing;
+        let timesReport = document.createElement("span");
         if (config.times.length > 0) {
           const average =
             config.times.reduce((a, b) => a + b, 0) / config.times.length;
@@ -47,32 +76,25 @@ Parameters:
             config.times.reduce((a, b) => a + (b - average) ** 2, 0) /
               config.times.length
           );
-          timesReport = html`
-            <span>
-              Average time: ${average.toFixed(2)}ms &plusmn;
-              ${stdDev.toFixed(2)}ms
-            </span>
-            <div style="display:none">
-              ${config.times.map(
-                (time) => html`<span>${time.toFixed(2)}ms</span>`
-              )}
-            </div>
+          timesReport.textContent = `
+              Average time: ${average.toFixed(3)}ms ±${stdDev.toFixed(3)}ms
           `;
         }
         function testAndUpdate() {
           test(config);
           main();
         }
-        return html`
-          <div>
-            <button @click=${testAndUpdate}>${config.name}</button>
-            ${timesReport}
-          </div>
-        `;
+        const div = document.createElement("div");
+        const button = document.createElement("button");
+        button.textContent = config.name;
+        button.addEventListener("click", testAndUpdate);
+        div.appendChild(button);
+        div.appendChild(timesReport);
+        return div;
       }
       function drawComparison(left, right) {
         if (left.times.length === 0 || right.times.length === 0) {
-          return nothing;
+          return document.createElement("div");
         }
         const leftAverage =
           left.times.reduce((a, b) => a + b, 0) / left.times.length;
@@ -89,47 +111,25 @@ Parameters:
         }
         const timesFaster =
           1 + Math.abs(diff) / Math.min(leftAverage, rightAverage);
-        return html`
-          <div>
-            <span>
-              ${faster.name} is ${timesFaster.toFixed(2)}x faster than
-              ${slower.name} over ${left.times.length} runs.
-            </span>
-          </div>
+        const div = document.createElement("div");
+        div.textContent = `
+          ${faster.name} is ${timesFaster.toFixed(2)}x faster than
+          ${slower.name} over ${left.times.length} runs.
         `;
+        return div;
       }
-      let numRuns = 100;
-      let running = false;
       function main() {
-        const gcAvailable = window.gc
-          ? ""
-          : `[window.gc is not availabe, run with --js-flags="--expose-gc"]`;
-        render(
-          html`
-            <div>
-              <div>${gcAvailable}</div>
-              <button @click=${() => runMany(numRuns)}>
-                Run ${numRuns} times
-              </button>
-              ${running ? html`Running...` : nothing}
-              <div>
-                <label
-                  >Runs:
-                  <input
-                    type="number"
-                    .value=${numRuns}
-                    @input=${(e) => {
-                      numRuns = e.target.value;
-                      main();
-                    }}
-                  />
-                </label>
-              </div>
-            </div>
-            ${drawConfig(domParts)} ${drawConfig(manual)}
-            ${drawComparison(domParts, manual)}
-          `,
-          document.body
+        if (running) {
+          spinner.style.display = "inline";
+          runManyButton.disabled = true;
+        } else {
+          spinner.style.display = "none";
+          runManyButton.disabled = false;
+        }
+        results.replaceChildren(
+          drawConfig(domParts),
+          drawConfig(manual),
+          drawComparison(domParts, manual)
         );
       }
       async function waitForPaint() {
@@ -141,10 +141,15 @@ Parameters:
         main();
         await waitForPaint();
         for (let i = 0; i < count; i++) {
-          test(domParts);
+          // periodically update the UI and yield to the event loop so we don't
+          // seem unresponsive
+          if (i % 20 === 0) {
+            main();
+            await waitForPaint();
+          }
+
           test(manual);
-          // yield periodically to the event loop so we don't seem unresponsive
-          await waitForPaint();
+          test(domParts);
         }
         running = false;
         main();
@@ -162,6 +167,7 @@ Parameters:
         config.times.push(performance.now() - startTime);
         document.body.removeChild(container);
       }
+      runMany(numRuns);
     </script>
   </body>
 </html>
