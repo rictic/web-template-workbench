@@ -10,7 +10,6 @@ import { SVG_RESULT } from './ttl.js';
 const d = document;
 // Creates a dynamic marker. We never have to search for these in the DOM.
 const createMarker = () => d.createComment('');
-const isPrimitive = (value) => value === null || (typeof value != 'object' && typeof value != 'function');
 const isArray = Array.isArray;
 const isIterable = (value) => isArray(value) ||
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,20 +162,11 @@ class ManualTemplate {
  * update the template instance.
  */
 class ManualTemplateInstance {
-    constructor(template, parent) {
+    constructor(template) {
         this._$parts = [];
         /** @internal */
         this._$disconnectableChildren = undefined;
         this._$template = template;
-        this._$parent = parent;
-    }
-    // Called by ChildPart parentNode getter
-    get parentNode() {
-        return this._$parent.parentNode;
-    }
-    // See comment in Disconnectable interface for why this is a getter
-    get _$isConnected() {
-        return this._$parent._$isConnected;
     }
     // This method is separate from the constructor because we need to return a
     // DocumentFragment and we don't want to hold onto it with an instance field.
@@ -278,20 +268,11 @@ class DomPartsTemplate {
  * update the template instance.
  */
 class DomPartsTemplateInstance {
-    constructor(template, parent) {
+    constructor(template) {
         this._$parts = [];
         /** @internal */
         this._$disconnectableChildren = undefined;
         this._$template = template;
-        this._$parent = parent;
-    }
-    // Called by ChildPart parentNode getter
-    get parentNode() {
-        return this._$parent.parentNode;
-    }
-    // See comment in Disconnectable interface for why this is a getter
-    get _$isConnected() {
-        return this._$parent._$isConnected;
     }
     // This method is separate from the constructor because we need to return a
     // DocumentFragment and we don't want to hold onto it with an instance field.
@@ -325,7 +306,7 @@ class ChildPart {
         // state
         return this._$parent?._$isConnected ?? this.__isConnected;
     }
-    constructor(startNode, endNode, parent, options) {
+    constructor(startNode, endNode, _parent, options) {
         this.type = CHILD_PART;
         this._$committedValue = '';
         // The following fields will be patched onto ChildParts when required by
@@ -334,218 +315,11 @@ class ChildPart {
         this._$disconnectableChildren = undefined;
         this._$startNode = startNode;
         this._$endNode = endNode;
-        this._$parent = parent;
         this.options = options;
         // Note __isConnected is only ever accessed on RootParts (i.e. when there is
         // no _$parent); the value on a non-root-part is "don't care", but checking
         // for parent would be more code
         this.__isConnected = options?.isConnected ?? true;
-    }
-    /**
-     * The parent node into which the part renders its content.
-     *
-     * A ChildPart's content consists of a range of adjacent child nodes of
-     * `.parentNode`, possibly bordered by 'marker nodes' (`.startNode` and
-     * `.endNode`).
-     *
-     * - If both `.startNode` and `.endNode` are non-null, then the part's content
-     * consists of all siblings between `.startNode` and `.endNode`, exclusively.
-     *
-     * - If `.startNode` is non-null but `.endNode` is null, then the part's
-     * content consists of all siblings following `.startNode`, up to and
-     * including the last child of `.parentNode`. If `.endNode` is non-null, then
-     * `.startNode` will always be non-null.
-     *
-     * - If both `.endNode` and `.startNode` are null, then the part's content
-     * consists of all child nodes of `.parentNode`.
-     */
-    get parentNode() {
-        let parentNode = this._$startNode.parentNode;
-        const parent = this._$parent;
-        if (parent !== undefined &&
-            parentNode?.nodeType === 11 /* Node.DOCUMENT_FRAGMENT */) {
-            // If the parentNode is a DocumentFragment, it may be because the DOM is
-            // still in the cloned fragment during initial render; if so, get the real
-            // parentNode the part will be committed into by asking the parent.
-            parentNode = parent.parentNode;
-        }
-        return parentNode;
-    }
-    /**
-     * The part's leading marker node, if any. See `.parentNode` for more
-     * information.
-     */
-    get startNode() {
-        return this._$startNode;
-    }
-    /**
-     * The part's trailing marker node, if any. See `.parentNode` for more
-     * information.
-     */
-    get endNode() {
-        return this._$endNode;
-    }
-    _$setValue(value) {
-        if (this.parentNode === null) {
-            throw new Error(`This \`ChildPart\` has no \`parentNode\` and therefore cannot accept a value. This likely means the element containing the part was manipulated in an unsupported way outside of Lit's control such that the part's marker nodes were ejected from DOM. For example, setting the element's \`innerHTML\` or \`textContent\` can do this.`);
-        }
-        if (isPrimitive(value)) {
-            // Non-rendering child values. It's important that these do not render
-            // empty text nodes to avoid issues with preventing default <slot>
-            // fallback content.
-            if (value == null || value === '') {
-                this._$clear();
-                this._$committedValue = '';
-            }
-            else if (value !== this._$committedValue) {
-                this._commitText(value);
-            }
-            // This property needs to remain unminified.
-        }
-        else if (value['_$litType$'] !== undefined) {
-            this._commitTemplateResult(value);
-        }
-        else if (value.nodeType !== undefined) {
-            if (this.options?.host === value) {
-                this._commitText(`[probable mistake: rendered a template's host in itself ` +
-                    `(commonly caused by writing \${this} in a template]`);
-                console.warn(`Attempted to render the template host`, value, `inside itself. This is almost always a mistake, and in dev mode `, `we render some warning text. In production however, we'll `, `render it, which will usually result in an error, and sometimes `, `in the element disappearing from the DOM.`);
-                return;
-            }
-            this._commitNode(value);
-        }
-        else if (isIterable(value)) {
-            this._commitIterable(value);
-        }
-        else {
-            // Fallback, will render the string representation
-            this._commitText(value);
-        }
-    }
-    _insert(node) {
-        return this._$startNode.parentNode.insertBefore(node, this._$endNode);
-    }
-    _commitNode(value) {
-        if (this._$committedValue !== value) {
-            this._$clear();
-            this._$committedValue = this._insert(value);
-        }
-    }
-    _commitText(value) {
-        // If the committed value is a primitive it means we called _commitText on
-        // the previous render, and we know that this._$startNode.nextSibling is a
-        // Text node. We can now just replace the text content (.data) of the node.
-        if (isPrimitive(this._$committedValue)) {
-            const node = this._$startNode.nextSibling;
-            node.data = value;
-        }
-        else {
-            this._commitNode(d.createTextNode(value));
-        }
-        this._$committedValue = value;
-    }
-    _commitTemplateResult(result) {
-        const template = this._$getTemplate(result);
-        if (this._$committedValue?._$template === template) ;
-        else {
-            const TemplateInstance = this.options?.useDomParts
-                ? DomPartsTemplateInstance
-                : ManualTemplateInstance;
-            const instance = new TemplateInstance(template, this);
-            instance._clone(this.options);
-        }
-    }
-    // Overridden via `litHtmlPolyfillSupport` to provide platform support.
-    /** @internal */
-    _$getTemplate(result) {
-        const templateCache = this.options.useDomParts
-            ? domPartsTemplateCache
-            : manualTemplateCache;
-        let template = templateCache.get(result.strings);
-        if (template === undefined) {
-            const Template = this.options.useDomParts
-                ? DomPartsTemplate
-                : ManualTemplate;
-            templateCache.set(result.strings, (template = new Template(result)));
-        }
-        return template;
-    }
-    _commitIterable(value) {
-        // For an Iterable, we create a new InstancePart per item, then set its
-        // value to the item. This is a little bit of overhead for every item in
-        // an Iterable, but it lets us recurse easily and efficiently update Arrays
-        // of TemplateResults that will be commonly returned from expressions like:
-        // array.map((i) => html`${i}`), by reusing existing TemplateInstances.
-        // If value is an array, then the previous render was of an
-        // iterable and value will contain the ChildParts from the previous
-        // render. If value is not an array, clear this part and make a new
-        // array for ChildParts.
-        if (!isArray(this._$committedValue)) {
-            this._$committedValue = [];
-            this._$clear();
-        }
-        // Lets us keep track of how many items we stamped so we can clear leftover
-        // items from a previous render
-        const itemParts = this._$committedValue;
-        let partIndex = 0;
-        let itemPart;
-        for (const item of value) {
-            if (partIndex === itemParts.length) {
-                // If no existing part, create a new one
-                // TODO (justinfagnani): test perf impact of always creating two parts
-                // instead of sharing parts between nodes
-                // https://github.com/lit/lit/issues/1266
-                itemParts.push((itemPart = new ChildPart(this._insert(createMarker()), this._insert(createMarker()), this, this.options)));
-            }
-            else {
-                // Reuse an existing part
-                itemPart = itemParts[partIndex];
-            }
-            itemPart._$setValue(item);
-            partIndex++;
-        }
-        if (partIndex < itemParts.length) {
-            // itemParts always have end nodes
-            this._$clear(itemPart && itemPart._$endNode.nextSibling, partIndex);
-            // Truncate the parts array so _value reflects the current state
-            itemParts.length = partIndex;
-        }
-    }
-    /**
-     * Removes the nodes contained within this Part from the DOM.
-     *
-     * @param start Start node to clear from, for clearing a subset of the part's
-     *     DOM (used when truncating iterables)
-     * @param from  When `start` is specified, the index within the iterable from
-     *     which ChildParts are being removed, used for disconnecting directives in
-     *     those Parts.
-     *
-     * @internal
-     */
-    _$clear(start = this._$startNode.nextSibling, from) {
-        this._$notifyConnectionChanged?.(false, true, from);
-        while (start && start !== this._$endNode) {
-            const n = start.nextSibling;
-            start.remove();
-            start = n;
-        }
-    }
-    /**
-     * Implementation of RootPart's `isConnected`. Note that this metod
-     * should only be called on `RootPart`s (the `ChildPart` returned from a
-     * top-level `render()` call). It has no effect on non-root ChildParts.
-     * @param isConnected Whether to set
-     * @internal
-     */
-    setConnected(isConnected) {
-        if (this._$parent === undefined) {
-            this.__isConnected = isConnected;
-            this._$notifyConnectionChanged?.(isConnected);
-        }
-        else {
-            throw new Error('part.setConnected() may only be called on a ' +
-                'RootPart returned from render().');
-        }
     }
 }
 class AttributePart {
@@ -574,62 +348,7 @@ class AttributePart {
             this._$committedValue = '';
         }
     }
-    /**
-     * Sets the value of this part by resolving the value from possibly multiple
-     * values and static strings and committing it to the DOM.
-     * If this part is single-valued, `this._strings` will be undefined, and the
-     * method will be called with a single value argument. If this part is
-     * multi-value, `this._strings` will be defined, and the method is called
-     * with the value array of the part's owning TemplateInstance, and an offset
-     * into the value array from which the values should be read.
-     * This method is overloaded this way to eliminate short-lived array slices
-     * of the template instance values, and allow a fast-path for single-valued
-     * parts.
-     *
-     * @param value The part value, or an array of values for multi-valued parts
-     * @param valueIndex the index to start reading values from. `undefined` for
-     *   single-valued parts
-     * @param noCommit causes the part to not commit its value to the DOM. Used
-     *   in hydration to prime attribute parts with their first-rendered value,
-     *   but not set the attribute, and in SSR to no-op the DOM operation and
-     *   capture the value for serialization.
-     *
-     * @internal
-     */
-    _$setValue(value, valueIndex, noCommit) {
-        const strings = this.strings;
-        // Whether any of the values has changed, for dirty-checking
-        let change = false;
-        if (strings === undefined) {
-            change = !isPrimitive(value) || value !== this._$committedValue;
-            if (change) {
-                this._$committedValue = value;
-            }
-        }
-        else {
-            // Interpolation case
-            const values = value;
-            value = strings[0];
-            let i, v;
-            for (i = 0; i < strings.length - 1; i++) {
-                v = values[valueIndex + i];
-                change ||=
-                    !isPrimitive(v) || v !== this._$committedValue[i];
-                value += (v ?? '') + strings[i + 1];
-                // We always record each value, even if one is `nothing`, for future
-                // change detection.
-                this._$committedValue[i] = v;
-            }
-        }
-        if (change && !noCommit) {
-            this._commitValue(value);
-        }
-    }
-    /** @internal */
-    _commitValue(value) {
-        this.element.setAttribute(this.name, (value ?? ''));
-    }
 }
 
-export { AttributePart, ChildPart, isIterable };
+export { AttributePart, ChildPart, DomPartsTemplate, DomPartsTemplateInstance, ManualTemplate, ManualTemplateInstance, domPartsTemplateCache, isIterable, manualTemplateCache };
 //# sourceMappingURL=template.js.map

@@ -21,10 +21,6 @@ const d = document;
 // Creates a dynamic marker. We never have to search for these in the DOM.
 const createMarker = () => d.createComment('');
 
-// https://tc39.github.io/ecma262/#sec-typeof-operator
-type Primitive = null | undefined | boolean | number | string | symbol | bigint;
-const isPrimitive = (value: unknown): value is Primitive =>
-  value === null || (typeof value != 'object' && typeof value != 'function');
 const isArray = Array.isArray;
 export const isIterable = (value: unknown): value is Iterable<unknown> =>
   isArray(value) ||
@@ -48,8 +44,11 @@ const COMMENT_PART = 7;
  * or attr. This restriction simplifies the cache lookup, which is on the hot
  * path for rendering.
  */
-const manualTemplateCache = new WeakMap<TemplateStringsArray, ManualTemplate>();
-const domPartsTemplateCache = new WeakMap<
+export const manualTemplateCache = new WeakMap<
+  TemplateStringsArray,
+  ManualTemplate
+>();
+export const domPartsTemplateCache = new WeakMap<
   TemplateStringsArray,
   DomPartsTemplate
 >();
@@ -73,7 +72,7 @@ export interface Disconnectable {
 }
 
 export type Template = ManualTemplate | DomPartsTemplate;
-class ManualTemplate {
+export class ManualTemplate {
   /** @internal */
   el!: HTMLTemplateElement;
 
@@ -215,28 +214,15 @@ class ManualTemplate {
  * An updateable instance of a Template. Holds references to the Parts used to
  * update the template instance.
  */
-class ManualTemplateInstance implements Disconnectable {
+export class ManualTemplateInstance {
   _$template: Template;
   _$parts: Array<Part | undefined> = [];
 
   /** @internal */
-  _$parent: ChildPart;
-  /** @internal */
   _$disconnectableChildren?: Set<Disconnectable> = undefined;
 
-  constructor(template: Template, parent: ChildPart) {
+  constructor(template: Template) {
     this._$template = template;
-    this._$parent = parent;
-  }
-
-  // Called by ChildPart parentNode getter
-  get parentNode() {
-    return this._$parent.parentNode;
-  }
-
-  // See comment in Disconnectable interface for why this is a getter
-  get _$isConnected() {
-    return this._$parent._$isConnected;
   }
 
   // This method is separate from the constructor because we need to return a
@@ -269,7 +255,7 @@ class ManualTemplateInstance implements Disconnectable {
             node as HTMLElement,
             templatePart.name,
             templatePart.strings,
-            this,
+            this as any,
             options
           );
         }
@@ -289,7 +275,7 @@ class ManualTemplateInstance implements Disconnectable {
   }
 }
 
-class DomPartsTemplate {
+export class DomPartsTemplate {
   /** @internal */
   el!: HTMLTemplateElement;
 
@@ -362,28 +348,15 @@ class DomPartsTemplate {
  * An updateable instance of a Template. Holds references to the Parts used to
  * update the template instance.
  */
-class DomPartsTemplateInstance implements Disconnectable {
+export class DomPartsTemplateInstance {
   _$template: Template;
   _$parts: Array<Part | undefined> = [];
 
   /** @internal */
-  _$parent: ChildPart;
-  /** @internal */
   _$disconnectableChildren?: Set<Disconnectable> = undefined;
 
-  constructor(template: DomPartsTemplate, parent: ChildPart) {
+  constructor(template: DomPartsTemplate) {
     this._$template = template;
-    this._$parent = parent;
-  }
-
-  // Called by ChildPart parentNode getter
-  get parentNode() {
-    return this._$parent.parentNode;
-  }
-
-  // See comment in Disconnectable interface for why this is a getter
-  get _$isConnected() {
-    return this._$parent._$isConnected;
   }
 
   // This method is separate from the constructor because we need to return a
@@ -417,7 +390,7 @@ class DomPartsTemplateInstance implements Disconnectable {
               (domPart as NodePart).node as HTMLElement,
               (part as AttributeTemplatePart).name,
               (part as AttributeTemplatePart).strings,
-              this,
+              this as any,
               options
             )
           );
@@ -513,256 +486,16 @@ export class ChildPart implements Disconnectable {
   constructor(
     startNode: ChildNode,
     endNode: ChildNode | null,
-    parent: TemplateInstance | ChildPart | undefined,
+    _parent: TemplateInstance | ChildPart | undefined,
     options: RenderOptions
   ) {
     this._$startNode = startNode;
     this._$endNode = endNode;
-    this._$parent = parent;
     this.options = options;
     // Note __isConnected is only ever accessed on RootParts (i.e. when there is
     // no _$parent); the value on a non-root-part is "don't care", but checking
     // for parent would be more code
     this.__isConnected = options?.isConnected ?? true;
-  }
-
-  /**
-   * The parent node into which the part renders its content.
-   *
-   * A ChildPart's content consists of a range of adjacent child nodes of
-   * `.parentNode`, possibly bordered by 'marker nodes' (`.startNode` and
-   * `.endNode`).
-   *
-   * - If both `.startNode` and `.endNode` are non-null, then the part's content
-   * consists of all siblings between `.startNode` and `.endNode`, exclusively.
-   *
-   * - If `.startNode` is non-null but `.endNode` is null, then the part's
-   * content consists of all siblings following `.startNode`, up to and
-   * including the last child of `.parentNode`. If `.endNode` is non-null, then
-   * `.startNode` will always be non-null.
-   *
-   * - If both `.endNode` and `.startNode` are null, then the part's content
-   * consists of all child nodes of `.parentNode`.
-   */
-  get parentNode(): Node {
-    let parentNode: Node = this._$startNode.parentNode!;
-    const parent = this._$parent;
-    if (
-      parent !== undefined &&
-      parentNode?.nodeType === 11 /* Node.DOCUMENT_FRAGMENT */
-    ) {
-      // If the parentNode is a DocumentFragment, it may be because the DOM is
-      // still in the cloned fragment during initial render; if so, get the real
-      // parentNode the part will be committed into by asking the parent.
-      parentNode = (parent as ChildPart | TemplateInstance).parentNode;
-    }
-    return parentNode;
-  }
-
-  /**
-   * The part's leading marker node, if any. See `.parentNode` for more
-   * information.
-   */
-  get startNode(): Node | null {
-    return this._$startNode;
-  }
-
-  /**
-   * The part's trailing marker node, if any. See `.parentNode` for more
-   * information.
-   */
-  get endNode(): Node | null {
-    return this._$endNode;
-  }
-
-  _$setValue(value: unknown): void {
-    if (DEV_MODE && this.parentNode === null) {
-      throw new Error(
-        `This \`ChildPart\` has no \`parentNode\` and therefore cannot accept a value. This likely means the element containing the part was manipulated in an unsupported way outside of Lit's control such that the part's marker nodes were ejected from DOM. For example, setting the element's \`innerHTML\` or \`textContent\` can do this.`
-      );
-    }
-    if (isPrimitive(value)) {
-      // Non-rendering child values. It's important that these do not render
-      // empty text nodes to avoid issues with preventing default <slot>
-      // fallback content.
-      if (value == null || value === '') {
-        this._$clear();
-        this._$committedValue = '';
-      } else if (value !== this._$committedValue) {
-        this._commitText(value);
-      }
-      // This property needs to remain unminified.
-    } else if ((value as TemplateResult)['_$litType$'] !== undefined) {
-      this._commitTemplateResult(value as TemplateResult);
-    } else if ((value as Node).nodeType !== undefined) {
-      if (DEV_MODE && this.options?.host === value) {
-        this._commitText(
-          `[probable mistake: rendered a template's host in itself ` +
-            `(commonly caused by writing \${this} in a template]`
-        );
-        console.warn(
-          `Attempted to render the template host`,
-          value,
-          `inside itself. This is almost always a mistake, and in dev mode `,
-          `we render some warning text. In production however, we'll `,
-          `render it, which will usually result in an error, and sometimes `,
-          `in the element disappearing from the DOM.`
-        );
-        return;
-      }
-      this._commitNode(value as Node);
-    } else if (isIterable(value)) {
-      this._commitIterable(value);
-    } else {
-      // Fallback, will render the string representation
-      this._commitText(value);
-    }
-  }
-
-  private _insert<T extends Node>(node: T) {
-    return this._$startNode.parentNode!.insertBefore(node, this._$endNode);
-  }
-
-  private _commitNode(value: Node): void {
-    if (this._$committedValue !== value) {
-      this._$clear();
-      this._$committedValue = this._insert(value);
-    }
-  }
-
-  private _commitText(value: unknown): void {
-    // If the committed value is a primitive it means we called _commitText on
-    // the previous render, and we know that this._$startNode.nextSibling is a
-    // Text node. We can now just replace the text content (.data) of the node.
-    if (isPrimitive(this._$committedValue)) {
-      const node = this._$startNode.nextSibling as Text;
-      (node as Text).data = value as string;
-    } else {
-      this._commitNode(d.createTextNode(value as string));
-    }
-    this._$committedValue = value;
-  }
-
-  private _commitTemplateResult(result: TemplateResult): void {
-    const template: Template = this._$getTemplate(result);
-
-    if ((this._$committedValue as TemplateInstance)?._$template === template) {
-    } else {
-      const TemplateInstance = this.options?.useDomParts
-        ? DomPartsTemplateInstance
-        : ManualTemplateInstance;
-      const instance = new TemplateInstance(template as Template, this);
-      instance._clone(this.options);
-    }
-  }
-
-  // Overridden via `litHtmlPolyfillSupport` to provide platform support.
-  /** @internal */
-  _$getTemplate(result: TemplateResult) {
-    const templateCache = this.options.useDomParts
-      ? domPartsTemplateCache
-      : manualTemplateCache;
-    let template = templateCache.get(result.strings);
-    if (template === undefined) {
-      const Template = this.options.useDomParts
-        ? DomPartsTemplate
-        : ManualTemplate;
-      templateCache.set(result.strings, (template = new Template(result)));
-    }
-    return template;
-  }
-
-  private _commitIterable(value: Iterable<unknown>): void {
-    // For an Iterable, we create a new InstancePart per item, then set its
-    // value to the item. This is a little bit of overhead for every item in
-    // an Iterable, but it lets us recurse easily and efficiently update Arrays
-    // of TemplateResults that will be commonly returned from expressions like:
-    // array.map((i) => html`${i}`), by reusing existing TemplateInstances.
-
-    // If value is an array, then the previous render was of an
-    // iterable and value will contain the ChildParts from the previous
-    // render. If value is not an array, clear this part and make a new
-    // array for ChildParts.
-    if (!isArray(this._$committedValue)) {
-      this._$committedValue = [];
-      this._$clear();
-    }
-
-    // Lets us keep track of how many items we stamped so we can clear leftover
-    // items from a previous render
-    const itemParts = this._$committedValue as ChildPart[];
-    let partIndex = 0;
-    let itemPart: ChildPart | undefined;
-
-    for (const item of value) {
-      if (partIndex === itemParts.length) {
-        // If no existing part, create a new one
-        // TODO (justinfagnani): test perf impact of always creating two parts
-        // instead of sharing parts between nodes
-        // https://github.com/lit/lit/issues/1266
-        itemParts.push(
-          (itemPart = new ChildPart(
-            this._insert(createMarker()),
-            this._insert(createMarker()),
-            this,
-            this.options
-          ))
-        );
-      } else {
-        // Reuse an existing part
-        itemPart = itemParts[partIndex];
-      }
-      itemPart._$setValue(item);
-      partIndex++;
-    }
-
-    if (partIndex < itemParts.length) {
-      // itemParts always have end nodes
-      this._$clear(itemPart && itemPart._$endNode!.nextSibling, partIndex);
-      // Truncate the parts array so _value reflects the current state
-      itemParts.length = partIndex;
-    }
-  }
-
-  /**
-   * Removes the nodes contained within this Part from the DOM.
-   *
-   * @param start Start node to clear from, for clearing a subset of the part's
-   *     DOM (used when truncating iterables)
-   * @param from  When `start` is specified, the index within the iterable from
-   *     which ChildParts are being removed, used for disconnecting directives in
-   *     those Parts.
-   *
-   * @internal
-   */
-  _$clear(
-    start: ChildNode | null = this._$startNode.nextSibling,
-    from?: number
-  ) {
-    this._$notifyConnectionChanged?.(false, true, from);
-    while (start && start !== this._$endNode) {
-      const n = start!.nextSibling;
-      (start! as Element).remove();
-      start = n;
-    }
-  }
-  /**
-   * Implementation of RootPart's `isConnected`. Note that this metod
-   * should only be called on `RootPart`s (the `ChildPart` returned from a
-   * top-level `render()` call). It has no effect on non-root ChildParts.
-   * @param isConnected Whether to set
-   * @internal
-   */
-  setConnected(isConnected: boolean) {
-    if (this._$parent === undefined) {
-      this.__isConnected = isConnected;
-      this._$notifyConnectionChanged?.(isConnected);
-    } else if (DEV_MODE) {
-      throw new Error(
-        'part.setConnected() may only be called on a ' +
-          'RootPart returned from render().'
-      );
-    }
   }
 }
 
@@ -770,24 +503,7 @@ export class ChildPart implements Disconnectable {
  * A top-level `ChildPart` returned from `render` that manages the connected
  * state of `AsyncDirective`s created throughout the tree below it.
  */
-export interface RootPart extends ChildPart {
-  /**
-   * Sets the connection state for `AsyncDirective`s contained within this root
-   * ChildPart.
-   *
-   * lit-html does not automatically monitor the connectedness of DOM rendered;
-   * as such, it is the responsibility of the caller to `render` to ensure that
-   * `part.setConnected(false)` is called before the part object is potentially
-   * discarded, to ensure that `AsyncDirective`s have a chance to dispose of
-   * any resources being held. If a `RootPart` that was previously
-   * disconnected is subsequently re-connected (and its `AsyncDirective`s should
-   * re-connect), `setConnected(true)` should be called.
-   *
-   * @param isConnected Whether directives within this tree should be connected
-   * or not
-   */
-  setConnected(isConnected: boolean): void;
-}
+export interface RootPart extends ChildPart {}
 
 export class AttributePart implements Disconnectable {
   readonly type = ATTRIBUTE_PART as
@@ -838,69 +554,5 @@ export class AttributePart implements Disconnectable {
     } else {
       this._$committedValue = '';
     }
-  }
-
-  /**
-   * Sets the value of this part by resolving the value from possibly multiple
-   * values and static strings and committing it to the DOM.
-   * If this part is single-valued, `this._strings` will be undefined, and the
-   * method will be called with a single value argument. If this part is
-   * multi-value, `this._strings` will be defined, and the method is called
-   * with the value array of the part's owning TemplateInstance, and an offset
-   * into the value array from which the values should be read.
-   * This method is overloaded this way to eliminate short-lived array slices
-   * of the template instance values, and allow a fast-path for single-valued
-   * parts.
-   *
-   * @param value The part value, or an array of values for multi-valued parts
-   * @param valueIndex the index to start reading values from. `undefined` for
-   *   single-valued parts
-   * @param noCommit causes the part to not commit its value to the DOM. Used
-   *   in hydration to prime attribute parts with their first-rendered value,
-   *   but not set the attribute, and in SSR to no-op the DOM operation and
-   *   capture the value for serialization.
-   *
-   * @internal
-   */
-  _$setValue(
-    value: unknown | Array<unknown>,
-    valueIndex?: number,
-    noCommit?: boolean
-  ) {
-    const strings = this.strings;
-
-    // Whether any of the values has changed, for dirty-checking
-    let change = false;
-
-    if (strings === undefined) {
-      change = !isPrimitive(value) || value !== this._$committedValue;
-      if (change) {
-        this._$committedValue = value;
-      }
-    } else {
-      // Interpolation case
-      const values = value as Array<unknown>;
-      value = strings[0];
-
-      let i, v;
-      for (i = 0; i < strings.length - 1; i++) {
-        v = values[valueIndex! + i];
-
-        change ||=
-          !isPrimitive(v) || v !== (this._$committedValue as Array<unknown>)[i];
-        value += (v ?? '') + strings[i + 1];
-        // We always record each value, even if one is `nothing`, for future
-        // change detection.
-        (this._$committedValue as Array<unknown>)[i] = v;
-      }
-    }
-    if (change && !noCommit) {
-      this._commitValue(value);
-    }
-  }
-
-  /** @internal */
-  _commitValue(value: unknown) {
-    this.element.setAttribute(this.name, (value ?? '') as string);
   }
 }

@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-import {ChildPart, RootPart} from './template.js';
-import {DEV_MODE, domPartsSupported} from './modes.js';
+import {DomPartsTemplate, DomPartsTemplateInstance, ManualTemplate, ManualTemplateInstance, Template, domPartsTemplateCache, manualTemplateCache} from './template.js';
+import {TemplateResult} from './ttl.js';
 
 /**
  * Object specifying options for controlling lit-html rendering. Note that
@@ -74,23 +74,24 @@ export interface RenderOptions {
  * {@link https://lit.dev/docs/libraries/standalone-templates/#rendering-lit-html-templates| Rendering Lit HTML Templates}
  */
 export const render = (
-  value: unknown,
-  container: HTMLElement | DocumentFragment,
-  options?: RenderOptions
-): RootPart => {
-  if (DEV_MODE && container == null) {
-    // Give a clearer error message than
-    //     Uncaught TypeError: Cannot read properties of null (reading
-    //     '_$litPart$')
-    // which reads like an internal Lit error.
-    throw new TypeError(`The container to render into may not be ${container}`);
+  value: TemplateResult,
+  _container: HTMLElement | DocumentFragment,
+  options: RenderOptions
+) => {
+  const templateCache = options.useDomParts
+    ? domPartsTemplateCache
+    : manualTemplateCache;
+  let template = templateCache.get(value.strings);
+  if (template === undefined) {
+    const Template = options.useDomParts
+      ? DomPartsTemplate
+      : ManualTemplate;
+    templateCache.set(value.strings, (template = new Template(value)));
   }
-  let part = new ChildPart(
-    container.insertBefore(document.createComment(''), null),
-    null,
-    undefined,
-    options ?? {useDomParts: domPartsSupported}
-  );
-  part._$setValue(value);
-  return part as RootPart;
+
+  const TemplateInstance = options?.useDomParts
+    ? DomPartsTemplateInstance
+    : ManualTemplateInstance;
+  const instance = new TemplateInstance(template as Template);
+  instance._clone(options);
 };

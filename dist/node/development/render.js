@@ -1,5 +1,4 @@
-import { ChildPart } from './template.js';
-import { domPartsSupported } from './modes.js';
+import { domPartsTemplateCache, manualTemplateCache, DomPartsTemplate, ManualTemplate, DomPartsTemplateInstance, ManualTemplateInstance } from './template.js';
 
 /**
  * @license
@@ -31,17 +30,22 @@ import { domPartsSupported } from './modes.js';
  * @see
  * {@link https://lit.dev/docs/libraries/standalone-templates/#rendering-lit-html-templates| Rendering Lit HTML Templates}
  */
-const render = (value, container, options) => {
-    if (container == null) {
-        // Give a clearer error message than
-        //     Uncaught TypeError: Cannot read properties of null (reading
-        //     '_$litPart$')
-        // which reads like an internal Lit error.
-        throw new TypeError(`The container to render into may not be ${container}`);
+const render = (value, _container, options) => {
+    const templateCache = options.useDomParts
+        ? domPartsTemplateCache
+        : manualTemplateCache;
+    let template = templateCache.get(value.strings);
+    if (template === undefined) {
+        const Template = options.useDomParts
+            ? DomPartsTemplate
+            : ManualTemplate;
+        templateCache.set(value.strings, (template = new Template(value)));
     }
-    let part = new ChildPart(container.insertBefore(document.createComment(''), null), null, undefined, options ?? { useDomParts: domPartsSupported });
-    part._$setValue(value);
-    return part;
+    const TemplateInstance = options?.useDomParts
+        ? DomPartsTemplateInstance
+        : ManualTemplateInstance;
+    const instance = new TemplateInstance(template);
+    instance._clone(options);
 };
 
 export { render };
