@@ -1,18 +1,27 @@
 /** TemplateResult types */
-const HTML_RESULT = 1;
-const SVG_RESULT = 2;
+export declare const HTML_RESULT = 1;
+export declare const SVG_RESULT = 2;
+export type ResultType = typeof HTML_RESULT | typeof SVG_RESULT;
 /**
- * Generates a template literal tag function that returns a TemplateResult with
- * the given result type.
+ * The return type of the template tag functions, {@linkcode html} and
+ * {@linkcode svg}.
+ *
+ * A `TemplateResult` object holds all the information about a template
+ * expression required to render it: the template strings, expression values,
+ * and type of template (html or svg).
+ *
+ * `TemplateResult` objects do not create any DOM on their own. To create or
+ * update DOM you need to render the `TemplateResult`. See
+ * [Rendering](https://lit.dev/docs/components/rendering) for more information.
+ *
  */
-const tag = (type) => (strings, ...values) => {
-    return {
-        // This property needs to remain unminified.
-        ['_$litType$']: type,
-        strings,
-        values,
-    };
+export type TemplateResult<T extends ResultType = ResultType> = {
+    ['_$litType$']: T;
+    strings: TemplateStringsArray;
+    values: unknown[];
 };
+export type HTMLTemplateResult = TemplateResult<typeof HTML_RESULT>;
+export type SVGTemplateResult = TemplateResult<typeof SVG_RESULT>;
 /**
  * Interprets a template literal as an HTML template that can efficiently
  * render to and update a container.
@@ -26,7 +35,7 @@ const tag = (type) => (strings, ...values) => {
  * if a template comes from the same expression as a previously rendered result,
  * it's efficiently updated instead of replaced.
  */
-const html = tag(HTML_RESULT);
+export declare const html: (strings: TemplateStringsArray, ...values: unknown[]) => TemplateResult<1>;
 /**
  * Interprets a template literal as an SVG fragment that can efficiently
  * render to and update a container.
@@ -50,7 +59,5 @@ const html = tag(HTML_RESULT);
  * `render()` method, as the SVG fragment will be contained within the element's
  * shadow root and thus cannot be used within an `<svg>` HTML element.
  */
-const svg = tag(SVG_RESULT);
-
-export { HTML_RESULT, SVG_RESULT, html, svg };
-//# sourceMappingURL=ttl.js.map
+export declare const svg: (strings: TemplateStringsArray, ...values: unknown[]) => TemplateResult<2>;
+//# sourceMappingURL=ttl.d.ts.map

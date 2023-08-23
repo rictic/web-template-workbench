@@ -1,6 +1,6 @@
 /** TemplateResult types */
-const HTML_RESULT = 1;
-const SVG_RESULT = 2;
+export const HTML_RESULT = 1;
+export const SVG_RESULT = 2;
 /**
  * Generates a template literal tag function that returns a TemplateResult with
  * the given result type.
@@ -26,7 +26,7 @@ const tag = (type) => (strings, ...values) => {
  * if a template comes from the same expression as a previously rendered result,
  * it's efficiently updated instead of replaced.
  */
-const html = tag(HTML_RESULT);
+export const html = tag(HTML_RESULT);
 /**
  * Interprets a template literal as an SVG fragment that can efficiently
  * render to and update a container.
@@ -50,7 +50,5 @@ const html = tag(HTML_RESULT);
  * `render()` method, as the SVG fragment will be contained within the element's
  * shadow root and thus cannot be used within an `<svg>` HTML element.
  */
-const svg = tag(SVG_RESULT);
-
-export { HTML_RESULT, SVG_RESULT, html, svg };
+export const svg = tag(SVG_RESULT);
 //# sourceMappingURL=ttl.js.map

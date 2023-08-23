@@ -1,5 +1,3 @@
-import {DEV_MODE} from './modes.js';
-
 /** TemplateResult types */
 export const HTML_RESULT = 1;
 export const SVG_RESULT = 2;
@@ -37,15 +35,6 @@ export type SVGTemplateResult = TemplateResult<typeof SVG_RESULT>;
 const tag =
   <T extends ResultType>(type: T) =>
   (strings: TemplateStringsArray, ...values: unknown[]): TemplateResult<T> => {
-    // Warn against templates octal escape sequences
-    // We do this here rather than in render so that the warning is closer to the
-    // template definition.
-    if (DEV_MODE && strings.some((s) => s === undefined)) {
-      console.warn(
-        'Some template strings are undefined.\n' +
-          'This is probably caused by illegal octal escape sequences.'
-      );
-    }
     return {
       // This property needs to remain unminified.
       ['_$litType$']: type,

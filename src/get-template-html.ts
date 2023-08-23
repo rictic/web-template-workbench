@@ -1,7 +1,6 @@
 // Added to an attribute name to mark the attribute as bound so we can find
 
-import {DEV_MODE} from './modes.js';
-import { ResultType, SVG_RESULT } from './ttl.js';
+import {ResultType, SVG_RESULT} from './ttl.js';
 
 export const boundAttributeSuffix = '$lit$';
 
@@ -45,21 +44,6 @@ export function trustFromTemplateString(
   // TemplateStringArray objects.
   if (!Array.isArray(tsa) || !tsa.hasOwnProperty('raw')) {
     let message = 'invalid template strings array';
-    if (DEV_MODE) {
-      message = `
-          Internal Error: expected template strings to be an array
-          with a 'raw' field. Faking a template strings array by
-          calling html or svg like an ordinary function is effectively
-          the same as calling unsafeHtml and can lead to major security
-          issues, e.g. opening your code up to XSS attacks.
-          If you're using the html or svg tagged template functions normally
-          and still seeing this error, please file a bug at
-          https://github.com/lit/lit/issues/new?template=bug_report.md
-          and include information about your build tooling, if any.
-        `
-        .trim()
-        .replace(/\n */g, '\n');
-    }
     throw new Error(message);
   }
   return policy !== undefined
@@ -212,12 +196,6 @@ export const getTemplateHtml = (
           }
           regex = tagEndRegex;
         } else if (match[DYNAMIC_TAG_NAME] !== undefined) {
-          if (DEV_MODE) {
-            throw new Error(
-              'Bindings in tag names are not supported. Please use static templates instead. ' +
-                'See https://lit.dev/docs/templates/expressions/#static-expressions'
-            );
-          }
           regex = tagEndRegex;
         }
       } else if (regex === tagEndRegex) {
@@ -254,19 +232,6 @@ export const getTemplateHtml = (
         regex = tagEndRegex;
         rawTextEndRegex = undefined;
       }
-    }
-
-    if (DEV_MODE) {
-      // If we have a attrNameEndIndex, which indicates that we should
-      // rewrite the attribute name, assert that we're in a valid attribute
-      // position - either in a tag, or a quoted attribute value.
-      console.assert(
-        attrNameEndIndex === -1 ||
-          regex === tagEndRegex ||
-          regex === singleQuoteAttrEndRegex ||
-          regex === doubleQuoteAttrEndRegex,
-        'unexpected parse state B'
-      );
     }
 
     // We have four cases:

@@ -11,7 +11,6 @@ import {
   markerMatch,
   rawTextElement,
 } from './get-template-html.js';
-import {DEV_MODE} from './modes.js';
 import {RenderOptions} from './render.js';
 import {templateFromLiterals} from './template-from-literals.js';
 import {SVG_RESULT, TemplateResult} from './ttl.js';
@@ -37,39 +36,10 @@ const EVENT_PART = 5;
 const ELEMENT_PART = 6;
 const COMMENT_PART = 7;
 
-/**
- * The cache of prepared templates, keyed by the tagged TemplateStringsArray
- * and _not_ accounting for the specific template tag used. This means that
- * template tags cannot be dynamic - the must statically be one of html, svg,
- * or attr. This restriction simplifies the cache lookup, which is on the hot
- * path for rendering.
- */
-export const manualTemplateCache = new WeakMap<
-  TemplateStringsArray,
-  ManualTemplate
->();
-export const domPartsTemplateCache = new WeakMap<
-  TemplateStringsArray,
-  DomPartsTemplate
->();
-
 const walker = d.createTreeWalker(
   d,
   129 /* NodeFilter.SHOW_{ELEMENT|COMMENT} */
 );
-
-export interface Disconnectable {
-  _$parent?: Disconnectable;
-  _$disconnectableChildren?: Set<Disconnectable>;
-  // Rather than hold connection state on instances, Disconnectables recursively
-  // fetch the connection state from the RootPart they are connected in via
-  // getters up the Disconnectable tree via _$parent references. This pushes the
-  // cost of tracking the isConnected state to `AsyncDirectives`, and avoids
-  // needing to pass all Disconnectables (parts, template instances, and
-  // directives) their connection state each time it changes, which would be
-  // costly for trees that have no AsyncDirectives.
-  _$isConnected: boolean;
-}
 
 export type Template = ManualTemplate | DomPartsTemplate;
 export class ManualTemplate {
@@ -81,7 +51,7 @@ export class ManualTemplate {
   constructor(
     // This property needs to remain unminified.
     {strings, ['_$litType$']: type}: TemplateResult,
-    options?: RenderOptions
+    _options?: RenderOptions
   ) {
     console.log(`creating a manual template`);
     let node: Node | null;
@@ -92,7 +62,9 @@ export class ManualTemplate {
 
     // Create template element
     const [html, attrNames] = getTemplateHtml(strings, type);
-    this.el = ManualTemplate.createElement(html, options);
+    const el = d.createElement('template');
+    el.innerHTML = html as unknown as string;
+    this.el = el;
     walker.currentNode = this.el.content;
 
     // Re-parent SVG nodes into template root
@@ -104,25 +76,6 @@ export class ManualTemplate {
     // Walk the template to find binding markers and create TemplateParts
     while ((node = walker.nextNode()) !== null && parts.length < partCount) {
       if (node.nodeType === 1) {
-        if (DEV_MODE) {
-          const tag = (node as Element).localName;
-          // Warn if `textarea` includes an expression and throw if `template`
-          // does since these are not supported. We do this by checking
-          // innerHTML for anything that looks like a marker. This catches
-          // cases like bindings in textarea there markers turn into text nodes.
-          if (
-            /^(?:textarea|template)$/i!.test(tag) &&
-            (node as Element).innerHTML.includes(marker)
-          ) {
-            const m =
-              `Expressions are not supported inside \`${tag}\` ` +
-              `elements. See https://lit.dev/msg/expression-in-${tag} for more ` +
-              `information.`;
-            if (tag === 'template') {
-              throw new Error(m);
-            }
-          }
-        }
         // TODO (justinfagnani): for attempted dynamic tag names, we don't
         // increment the bindingIndex, and it'll be off by 1 in the element
         // and off by two after it.
@@ -198,15 +151,7 @@ export class ManualTemplate {
     }
     // We could set walker.currentNode to another node here to prevent a memory
     // leak, but every time we prepare a template, we immediately render it
-    // and re-use the walker in new TemplateInstance._clone().
-  }
-
-  // Overridden via `litHtmlPolyfillSupport` to provide platform support.
-  /** @nocollapse */
-  static createElement(html: TrustedHTML, _options?: RenderOptions) {
-    const el = d.createElement('template');
-    el.innerHTML = html as unknown as string;
-    return el;
+    // and re-use the walker in new TemplateInstance.clone().
   }
 }
 
@@ -215,23 +160,20 @@ export class ManualTemplate {
  * update the template instance.
  */
 export class ManualTemplateInstance {
-  _$template: Template;
-  _$parts: Array<Part | undefined> = [];
-
-  /** @internal */
-  _$disconnectableChildren?: Set<Disconnectable> = undefined;
+  template: Template;
+  parts: Array<Part | undefined> = [];
 
   constructor(template: Template) {
-    this._$template = template;
+    this.template = template;
   }
 
   // This method is separate from the constructor because we need to return a
   // DocumentFragment and we don't want to hold onto it with an instance field.
-  _clone(options: RenderOptions) {
+  clone(options: RenderOptions) {
     const {
       el: {content},
       parts: parts,
-    } = this._$template;
+    } = this.template;
     const fragment = (options?.creationScope ?? d).importNode(content, true);
     walker.currentNode = fragment;
 
@@ -254,12 +196,10 @@ export class ManualTemplateInstance {
           part = new templatePart.ctor(
             node as HTMLElement,
             templatePart.name,
-            templatePart.strings,
-            this as any,
-            options
+            templatePart.strings
           );
         }
-        this._$parts.push(part);
+        this.parts.push(part);
         templatePart = parts[++partIndex];
       }
       if (nodeIndex !== templatePart?.index) {
@@ -349,23 +289,20 @@ export class DomPartsTemplate {
  * update the template instance.
  */
 export class DomPartsTemplateInstance {
-  _$template: Template;
-  _$parts: Array<Part | undefined> = [];
-
-  /** @internal */
-  _$disconnectableChildren?: Set<Disconnectable> = undefined;
+  template: Template;
+  parts: Array<Part | undefined> = [];
 
   constructor(template: DomPartsTemplate) {
-    this._$template = template;
+    this.template = template;
   }
 
   // This method is separate from the constructor because we need to return a
   // DocumentFragment and we don't want to hold onto it with an instance field.
-  _clone(options: RenderOptions) {
+  clone(options: RenderOptions) {
     const {
       el: {content},
       parts: parts,
-    } = this._$template;
+    } = this.template;
     const domPartRoot = content.getPartRoot().clone();
     const domParts = domPartRoot.getParts();
     const fragment = document.adoptNode(domPartRoot.rootContainer);
@@ -375,7 +312,7 @@ export class DomPartsTemplateInstance {
       const domPart = domParts[part.index];
       switch (part.type) {
         case CHILD_PART:
-          this._$parts.push(
+          this.parts.push(
             new ChildPart(
               (domPart as ChildNodePart).previousSibling,
               (domPart as ChildNodePart).nextSibling as ChildNode,
@@ -385,13 +322,11 @@ export class DomPartsTemplateInstance {
           );
           break;
         case ATTRIBUTE_PART: {
-          this._$parts.push(
+          this.parts.push(
             new (part as AttributeTemplatePart).ctor(
               (domPart as NodePart).node as HTMLElement,
               (part as AttributeTemplatePart).name,
-              (part as AttributeTemplatePart).strings,
-              this as any,
-              options
+              (part as AttributeTemplatePart).strings
             )
           );
           break;
@@ -442,46 +377,12 @@ type TemplatePart =
 
 export type Part = ChildPart | AttributePart;
 
-export class ChildPart implements Disconnectable {
+export class ChildPart {
   readonly type = CHILD_PART;
   readonly options: RenderOptions;
-  _$committedValue: unknown = '';
-  /** @internal */
-  _$startNode: ChildNode;
-  /** @internal */
-  _$endNode: ChildNode | null;
-  /** @internal */
-  _$parent: Disconnectable | undefined;
-  /**
-   * Connection state for RootParts only (i.e. ChildPart without _$parent
-   * returned from top-level `render`). This field is unsed otherwise. The
-   * intention would clearer if we made `RootPart` a subclass of `ChildPart`
-   * with this field (and a different _$isConnected getter), but the subclass
-   * caused a perf regression, possibly due to making call sites polymorphic.
-   * @internal
-   */
-  __isConnected: boolean;
-
-  // See comment in Disconnectable interface for why this is a getter
-  get _$isConnected() {
-    // ChildParts that are not at the root should always be created with a
-    // parent; only RootChildNode's won't, so they return the local isConnected
-    // state
-    return this._$parent?._$isConnected ?? this.__isConnected;
-  }
-
-  // The following fields will be patched onto ChildParts when required by
-  // AsyncDirective
-  /** @internal */
-  _$disconnectableChildren?: Set<Disconnectable> = undefined;
-  /** @internal */
-  _$notifyConnectionChanged?(
-    isConnected: boolean,
-    removeFromParent?: boolean,
-    from?: number
-  ): void;
-  /** @internal */
-  _$reparentDisconnectables?(parent: Disconnectable): void;
+  committedValue: unknown = '';
+  startNode: ChildNode;
+  endNode: ChildNode | null;
 
   constructor(
     startNode: ChildNode,
@@ -489,23 +390,13 @@ export class ChildPart implements Disconnectable {
     _parent: TemplateInstance | ChildPart | undefined,
     options: RenderOptions
   ) {
-    this._$startNode = startNode;
-    this._$endNode = endNode;
+    this.startNode = startNode;
+    this.endNode = endNode;
     this.options = options;
-    // Note __isConnected is only ever accessed on RootParts (i.e. when there is
-    // no _$parent); the value on a non-root-part is "don't care", but checking
-    // for parent would be more code
-    this.__isConnected = options?.isConnected ?? true;
   }
 }
 
-/**
- * A top-level `ChildPart` returned from `render` that manages the connected
- * state of `AsyncDirective`s created throughout the tree below it.
- */
-export interface RootPart extends ChildPart {}
-
-export class AttributePart implements Disconnectable {
+export class AttributePart {
   readonly type = ATTRIBUTE_PART as
     | typeof ATTRIBUTE_PART
     | typeof PROPERTY_PART
@@ -522,37 +413,20 @@ export class AttributePart implements Disconnectable {
    */
   readonly strings?: ReadonlyArray<string>;
   /** @internal */
-  _$committedValue: unknown | Array<unknown> = [];
-  /** @internal */
-  _$parent: Disconnectable;
-  /** @internal */
-  _$disconnectableChildren?: Set<Disconnectable> = undefined;
-
-  get tagName() {
-    return this.element.tagName;
-  }
-
-  // See comment in Disconnectable interface for why this is a getter
-  get _$isConnected() {
-    return this._$parent._$isConnected;
-  }
+  value: unknown | Array<unknown> = [];
 
   constructor(
     element: HTMLElement,
     name: string,
-    strings: ReadonlyArray<string>,
-    parent: Disconnectable,
-    options: RenderOptions | undefined
+    strings: ReadonlyArray<string>
   ) {
     this.element = element;
     this.name = name;
-    this._$parent = parent;
-    this.options = options;
     if (strings.length > 2 || strings[0] !== '' || strings[1] !== '') {
-      this._$committedValue = new Array(strings.length - 1).fill(new String());
+      this.value = new Array(strings.length - 1).fill(new String());
       this.strings = strings;
     } else {
-      this._$committedValue = '';
+      this.value = '';
     }
   }
 }

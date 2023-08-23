@@ -1,27 +1,29 @@
-import { getTemplateHtml, boundAttributeSuffix, marker, rawTextElement, markerMatch } from './get-template-html.js';
-import { templateFromLiterals } from './template-from-literals.js';
-import { SVG_RESULT } from './ttl.js';
-
 /**
  * @license
  * Copyright 2023 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
+import { boundAttributeSuffix, getTemplateHtml, marker, markerMatch, rawTextElement, } from './get-template-html.js';
+import { templateFromLiterals } from './template-from-literals.js';
+import { SVG_RESULT } from './ttl.js';
 const d = document;
 // Creates a dynamic marker. We never have to search for these in the DOM.
 const createMarker = () => d.createComment('');
 const isArray = Array.isArray;
-const isIterable = (value) => isArray(value) ||
+export const isIterable = (value) => isArray(value) ||
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     typeof value?.[Symbol.iterator] === 'function';
 // TemplatePart types
 // IMPORTANT: these must match the values in PartType
 const ATTRIBUTE_PART = 1;
 const CHILD_PART = 2;
+const PROPERTY_PART = 3;
+const BOOLEAN_ATTRIBUTE_PART = 4;
+const EVENT_PART = 5;
 const ELEMENT_PART = 6;
 const COMMENT_PART = 7;
 const walker = d.createTreeWalker(d, 129 /* NodeFilter.SHOW_{ELEMENT|COMMENT} */);
-class ManualTemplate {
+export class ManualTemplate {
     constructor(
     // This property needs to remain unminified.
     { strings, ['_$litType$']: type }, _options) {
@@ -131,7 +133,7 @@ class ManualTemplate {
  * An updateable instance of a Template. Holds references to the Parts used to
  * update the template instance.
  */
-class ManualTemplateInstance {
+export class ManualTemplateInstance {
     constructor(template) {
         this.parts = [];
         this.template = template;
@@ -170,7 +172,7 @@ class ManualTemplateInstance {
         return fragment;
     }
 }
-class DomPartsTemplate {
+export class DomPartsTemplate {
     constructor(
     // This property needs to remain unminified.
     { strings, ['_$litType$']: type }, _options) {
@@ -235,7 +237,7 @@ class DomPartsTemplate {
  * An updateable instance of a Template. Holds references to the Parts used to
  * update the template instance.
  */
-class DomPartsTemplateInstance {
+export class DomPartsTemplateInstance {
     constructor(template) {
         this.parts = [];
         this.template = template;
@@ -264,7 +266,7 @@ class DomPartsTemplateInstance {
         return fragment;
     }
 }
-class ChildPart {
+export class ChildPart {
     constructor(startNode, endNode, _parent, options) {
         this.type = CHILD_PART;
         this.committedValue = '';
@@ -273,7 +275,7 @@ class ChildPart {
         this.options = options;
     }
 }
-class AttributePart {
+export class AttributePart {
     constructor(element, name, strings) {
         this.type = ATTRIBUTE_PART;
         /** @internal */
@@ -289,6 +291,4 @@ class AttributePart {
         }
     }
 }
-
-export { AttributePart, ChildPart, DomPartsTemplate, DomPartsTemplateInstance, ManualTemplate, ManualTemplateInstance, isIterable };
 //# sourceMappingURL=template.js.map

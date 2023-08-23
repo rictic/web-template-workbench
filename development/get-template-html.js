@@ -1,14 +1,13 @@
-import { SVG_RESULT } from './ttl.js';
-
 // Added to an attribute name to mark the attribute as bound so we can find
-const boundAttributeSuffix = '$lit$';
+import { SVG_RESULT } from './ttl.js';
+export const boundAttributeSuffix = '$lit$';
 // This marker is used in many syntactic positions in HTML, so it must be
 // a valid element name and attribute name. We don't support dynamic names (yet)
 // but this at least ensures that the parse tree is closer to the template
 // intention.
-const marker = `lit$${String(Math.random()).slice(9)}$`;
+export const marker = `lit$${String(Math.random()).slice(9)}$`;
 // String used to tell if a comment is a marker comment
-const markerMatch = '?' + marker;
+export const markerMatch = '?' + marker;
 // Text used to insert a comment marker node. We use processing instruction
 // syntax because it's slightly smaller, but parses as a comment node.
 const nodeMarker = `<${markerMatch}>`;
@@ -26,7 +25,7 @@ const policy = trustedTypes
         createHTML: (s) => s,
     })
     : undefined;
-function trustFromTemplateString(tsa, stringFromTSA) {
+export function trustFromTemplateString(tsa, stringFromTSA) {
     // A security check to prevent spoofing of Lit template results.
     // In the future, we may be able to replace this with Array.isTemplateObject,
     // though we might need to make that check inside of the html and svg
@@ -71,7 +70,7 @@ const NAME_CHAR = `[^\\s"'>=/]`;
  * Comments are not parsed within raw text elements, so we need to search their
  * text content for marker strings.
  */
-const rawTextElement = /^(?:script|style|textarea|title)$/i;
+export const rawTextElement = /^(?:script|style|textarea|title)$/i;
 /**
  * The tagEnd regex matches the end of the "inside an opening" tag syntax
  * position. It either matches a `>`, an attribute-like sequence, or the end
@@ -113,7 +112,7 @@ const doubleQuoteAttrEndRegex = /"/g;
  *     to avoid object fields since this code is shared with non-minified SSR
  *     code)
  */
-const getTemplateHtml = (strings, type) => {
+export const getTemplateHtml = (strings, type) => {
     // Insert makers into the template HTML to represent the position of
     // bindings. The following code scans the template strings to determine the
     // syntactic position of the bindings. They can be in text position, where
@@ -241,6 +240,4 @@ const getTemplateHtml = (strings, type) => {
     // Returned as an array for terseness
     return [trustFromTemplateString(strings, htmlResult), attrNames];
 };
-
-export { boundAttributeSuffix, getTemplateHtml, marker, markerMatch, rawTextElement, trustFromTemplateString };
 //# sourceMappingURL=get-template-html.js.map

@@ -7,7 +7,19 @@
 // enable typescript checking of this js file
 // @ts-check
 
-import { html, render as litRender, ChildPart } from "../dist/index.js";
+let module;
+if (window.location.search.includes("dev")) {
+  module = await import("../development/index.js");
+} else {
+  module = await import("../dist/index.js");
+}
+const {
+  html,
+  DomPartsTemplate,
+  ManualTemplate,
+  DomPartsTemplateInstance,
+  ManualTemplateInstance,
+} = module;
 
 const render = () =>
   html`<div
@@ -1196,7 +1208,16 @@ const render = () =>
     </div>`;
 
 let updateId = 0;
+const domPartsTemplate = new DomPartsTemplate(render());
+const manualTemplate = new ManualTemplate(render());
 export const update = (container, options) => {
-  litRender(render(), container, options);
+  if (options.useDomParts) {
+    const instance = new DomPartsTemplateInstance(domPartsTemplate);
+    instance.clone(options);
+  } else {
+    const instance = new ManualTemplateInstance(manualTemplate);
+    instance.clone(options);
+  }
+  // litRender(render(), container, options);
   updateId++;
 };
