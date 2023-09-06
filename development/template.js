@@ -142,7 +142,25 @@ export class ManualTemplateInstance {
     // DocumentFragment and we don't want to hold onto it with an instance field.
     clone(options) {
         const { el: { content }, parts: parts, } = this.template;
+        const startClone = performance.now();
         const fragment = (options?.creationScope ?? d).importNode(content, true);
+        performance.measure('clone template', {
+            start: startClone,
+            end: performance.now(),
+        });
+        const getPartsStart = performance.now();
+        // No get parts, so it takes zero times
+        performance.measure('get parts', {
+            start: getPartsStart,
+            end: getPartsStart,
+        });
+        // adoption happens as part of clone, so it also takes zero time
+        const adoptNodeStart = performance.now();
+        performance.measure('adopt', {
+            start: adoptNodeStart,
+            end: adoptNodeStart,
+        });
+        const partCreationStart = performance.now();
         walker.currentNode = fragment;
         let node = walker.nextNode();
         let nodeIndex = 0;
@@ -169,6 +187,10 @@ export class ManualTemplateInstance {
         // don't hold onto the tree even if the tree is detached and should be
         // freed.
         walker.currentNode = d;
+        performance.measure('create part wrappers', {
+            start: partCreationStart,
+            end: performance.now(),
+        });
         return fragment;
     }
 }
@@ -246,9 +268,25 @@ export class DomPartsTemplateInstance {
     // DocumentFragment and we don't want to hold onto it with an instance field.
     clone(options) {
         const { el: { content }, parts: parts, } = this.template;
+        const cloneStart = performance.now();
         const domPartRoot = content.getPartRoot().clone();
+        performance.measure('clone template', {
+            start: cloneStart,
+            end: performance.now(),
+        });
+        const getPartsStart = performance.now();
         const domParts = domPartRoot.getParts();
+        performance.measure('get parts', {
+            start: getPartsStart,
+            end: performance.now(),
+        });
+        const adoptNodeStart = performance.now();
         const fragment = document.adoptNode(domPartRoot.rootContainer);
+        performance.measure('adopt', {
+            start: adoptNodeStart,
+            end: performance.now(),
+        });
+        const partCreationStart = performance.now();
         // See: https://github.com/tbondwilkinson/dom-parts/issues/6
         // customElements.upgrade(fragment);
         for (const part of parts) {
@@ -263,6 +301,10 @@ export class DomPartsTemplateInstance {
                 }
             }
         }
+        performance.measure('create part wrappers', {
+            start: partCreationStart,
+            end: performance.now(),
+        });
         return fragment;
     }
 }

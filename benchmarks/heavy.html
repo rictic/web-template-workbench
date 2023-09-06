@@ -56,29 +56,47 @@ Parameters:
         name: "DOM Parts",
         options: { useDomParts: true },
         times: [],
+        cloneTimes: [],
+        getPartsTimes: [],
+        adoptTimes: [],
+        createManualPartTimes: [],
       };
       const manual = {
         name: "Manual",
         options: { useDomParts: false },
         times: [],
+        cloneTimes: [],
+        getPartsTimes: [],
+        adoptTimes: [],
+        createManualPartTimes: [],
       };
       updateNumTimes();
       // ensure that <template>s are created for both versions first,
       // because our DOM Parts template creation code is not optimized yet.
       update(document.createElement("div"), domParts.options);
       update(document.createElement("div"), manual.options);
+      function reportTimes(times) {
+        const average = times.reduce((a, b) => a + b, 0) / times.length;
+        const stdDev = Math.sqrt(
+          times.reduce((a, b) => a + (b - average) ** 2, 0) / times.length
+        );
+        return `${average.toFixed(3)}ms ±${stdDev.toFixed(3)}ms`;
+      }
       function drawConfig(config) {
-        let timesReport = document.createElement("span");
+        let timesReport = document.createElement("ul");
+        const configMap = {
+          "Clone template": "cloneTimes",
+          "Get parts": "getPartsTimes",
+          Adopt: "adoptTimes",
+          "Create part wrappers": "createManualPartTimes",
+          Overall: "times",
+        };
         if (config.times.length > 0) {
-          const average =
-            config.times.reduce((a, b) => a + b, 0) / config.times.length;
-          const stdDev = Math.sqrt(
-            config.times.reduce((a, b) => a + (b - average) ** 2, 0) /
-              config.times.length
-          );
-          timesReport.textContent = `
-              Average time: ${average.toFixed(3)}ms ±${stdDev.toFixed(3)}ms
-          `;
+          for (const [name, field] of Object.entries(configMap)) {
+            const li = document.createElement("li");
+            li.textContent = `${name}: ${reportTimes(config[field])}`;
+            timesReport.appendChild(li);
+          }
         }
         function testAndUpdate() {
           test(config);
@@ -165,6 +183,18 @@ Parameters:
         const startTime = performance.now();
         update(container, config.options);
         config.times.push(performance.now() - startTime);
+        config.cloneTimes.push(
+          performance.getEntriesByName("clone template").pop().duration
+        );
+        config.getPartsTimes.push(
+          performance.getEntriesByName("get parts").pop().duration
+        );
+        config.adoptTimes.push(
+          performance.getEntriesByName("adopt").pop().duration
+        );
+        config.createManualPartTimes.push(
+          performance.getEntriesByName("create part wrappers").pop().duration
+        );
         document.body.removeChild(container);
       }
       runMany(numRuns);

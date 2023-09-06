@@ -10,7 +10,8 @@
     "checksize": "wireit",
     "test": "wireit",
     "test:dev": "wireit",
-    "test:prod": "wireit"
+    "test:prod": "wireit",
+    "start": "wireit"
   },
   "wireit": {
     "build": {
@@ -96,6 +97,16 @@
         "web-test-runner.config.js"
       ],
       "output": []
+    },
+    "start": {
+      "dependencies": [
+        {
+          "script": "build",
+          "cascade": true
+        }
+      ],
+      "service": true,
+      "command": "wds --watch"
     }
   },
   "dependencies": {
@@ -110,6 +121,7 @@
     "@rollup/plugin-virtual": "^3.0.1",
     "@types/chai": "^4.3.1",
     "@types/mocha": "^9.1.1",
+    "@web/dev-server": "^0.3.0",
     "@web/dev-server-legacy": "^2.0.0",
     "@web/polyfills-loader": "^2.1.1",
     "@web/test-runner": "^0.15.0",
@@ -123,7 +135,7 @@
     "rollup-plugin-sourcemaps": "^0.6.3",
     "rollup-plugin-terser": "^7.0.2",
     "typescript": "^5.1.6",
-    "wireit": "^0.10.0"
+    "wireit": "^0.13.0"
   },
   "typings": "lit-html.d.ts",
   "directories": {
